@@ -23,7 +23,6 @@ async def auto_scroll(page):
 async def take_screenshot(page, url, output_path):
     print(f"🌐 {url} 접속 중...")
     
-    # 서현 씨 의견대로 wait_until="load" 유지
     response = await page.goto(url, wait_until="load") 
     
     # [추가] 자동 스크롤 실행
