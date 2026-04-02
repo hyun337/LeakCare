@@ -33,11 +33,11 @@ async def download_image(url):
     return None
 
 # ─────────────────────────────
-# [기능 2] 백엔드 API 연동 함수
+# [기능 2] 백엔드 API 연동 함수 
 # ─────────────────────────────
 async def send_to_backend(target_url, name, evidence_info):
-    """백엔드 서버로 분석 요청 및 메타데이터 전송"""
-    base_url = ""
+    # 백엔드 서버로 분석 요청 및 메타데이터 전송
+    base_url = "https://5528-121-67-233-19.ngrok-free.app"
     analyze_url = f"{base_url}/api/v1/detection/analyze"
     metadata_url = f"{base_url}/api/v1/detection/metadata"
     
@@ -53,7 +53,7 @@ async def send_to_backend(target_url, name, evidence_info):
                 
                 # 2단계: 메타데이터 전송
                 metadata_payload = {
-                    "task_id": task_id,
+                    "task_id": task_id, # BE 추가 예정 !!!!!!!!!!!!!!!!!!!!!!
                     "ip_address": evidence_info['ip'],
                     "country": evidence_info['country'],
                     "city": evidence_info['city'],
@@ -64,7 +64,7 @@ async def send_to_backend(target_url, name, evidence_info):
                 res_meta = await client.post(metadata_url, json=metadata_payload, timeout=10.0)
 
                 if res_meta.status_code in [200, 201]:
-                    print(f"✅ [API] DB 메타데이터 저장 완료! (IP: {evidence_info['ip']})")
+                    print(f"☑️ [API] DB 메타데이터 저장 완료! (IP: {evidence_info['ip']})")
                 else:
                     print(f"⚠️ [API] 메타데이터 저장 실패: {res_meta.status_code}")
                 return task_id
@@ -100,7 +100,7 @@ async def main():
     page = await bm.start()
 
     try:
-        # 1. 사이트 접속 및 증거 채증
+        # 1. 사이트 접속 및 증거 채증 (메타데이터 확보)
         output_path, filename = generate_evidence_path()
         response = await take_screenshot(page, args.url, output_path)
         
@@ -113,7 +113,7 @@ async def main():
 
         raw_images = []
 
-        # 2. 모드별 이미지 수집 
+        # 2. 모드별 이미지 수집 (튜플 구조 유지)
         if args.mode == "single":
             print(f"\n🗂️ 단일 페이지 이미지 수집 중...")
             imgs = await extract_images(page)
@@ -146,18 +146,28 @@ async def main():
             if img_data and len(img_data) > 10240:
                 analysis = await ai_module.analyze_face(img_data)
                 results = analysis.get('results', [])
+                
+                # 분석 결과가 있든 없든 조사한 게시물의 메타데이터를 즉시 전송
+                current_evidence = {
+                    "ip": ip, "country": country, "city": city,
+                    "screenshot_path": os.path.join(current_dir, filename),
+                    "timestamp": time.strftime('%Y-%m-%d %H:%M:%S'),
+                    "img_url": img_url # 개별 이미지 URL 추가
+                }
+                # 실시간 동기화 호출
+                await send_to_backend(source_page, "이서현", current_evidence)
+
                 for face in results:
                     score = face.get('score', 0)
                     if score >= 0.85:
-                        print(f"   ⚠️ 유출 의심 발견! [{idx+1}] 점수: {score} | URL: {img_url[:40]}...")
+                        print(f"   ⚠️ 유출 의심 발견! [{idx+1}] 점수: {score}...")
                         matched.append({"url": img_url, "page": source_page, "score": score})
-
         end_time = time.time()
         print("-" * 50)
         print(f"✅ 분석 완료! (소요 시간: {int(end_time - start_time)}초)")
         print(f"🚨 총 {len(matched)}건의 유출 의심 사례를 발견했습니다.")
 
-        # 5. 백엔드 연동
+        # 5. 백엔드 연동 (수집된 메타데이터 포함하여 호출) 
         evidence_info = {
             "ip": ip,
             "country": country,
@@ -184,3 +194,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
