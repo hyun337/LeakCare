@@ -38,7 +38,7 @@ async def take_screenshot(page, url, output_path):
     # 페이지 완전히 로딩될 때까지 대기
     response = await page.goto(url, wait_until="load")
 
-    # ▼ 중요: 스크롤해야 이미지 다 뜸
+    # 중요: 스크롤해야 이미지 다 뜸
     await auto_scroll(page)
 
     # 스크롤 후 로딩 대기
