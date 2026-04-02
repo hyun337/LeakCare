@@ -1,3 +1,7 @@
+# python3 main.py "https://postimg.cc/gallery/9WfG94r" --mode single
+# python3 main.py "https://www.clien.net/service/board/park?po=0" --mode board --start 1 --end 2
+
+
 import asyncio
 import argparse
 import httpx
