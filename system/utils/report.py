@@ -33,6 +33,7 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     evidence_data: {ip, location, screenshot_path, target_url}
     ai_results: [{url, score, page_url}, ...]
     """
+    # PDF 문서 생성을 위한 elements 준비
     doc = SimpleDocTemplate(output_path, pagesize=A4)
     elements = []
     
@@ -45,7 +46,7 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     elements.append(Paragraph("<b>[LeakCare] 디지털 콘텐츠 유출 보고서</b>", styles['Title']))
     elements.append(Spacer(1, 12))
 
-    # 2. 기본 수사 정보 표 (Table)
+    # 2. 기본 정보 표 (Table)
     info_data = [
         ["항목", "내용"],
         ["대상 URL", evidence_data.get('target_url', 'N/A')],
@@ -70,7 +71,7 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     # 3. 채증 스크린샷 첨부
     elements.append(Paragraph("<b>[증거 1] 현장 채증 스크린샷</b>", styles['Heading2']))
     if os.path.exists(evidence_data.get('screenshot_path', '')):
-        # 이미지 크기 최적화 
+        # 이미지 크기 최적화 (A4 너비에 맞춤)
         img = Image(evidence_data['screenshot_path'], width=450, height=250)
         elements.append(img)
     else:
