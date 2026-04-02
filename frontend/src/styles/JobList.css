@@ -1,0 +1,169 @@
+/* 레이아웃 초기화 */
+.joblist-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  background-color: #f8faff;
+  min-height: 100vh;
+  font-family: 'Pretendard', sans-serif;
+}
+
+/* 헤더 디자인 */
+.joblist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.joblist-header h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+}
+
+.joblist-header p {
+  color: #64748b;
+  margin: 4px 0 0;
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: white;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  color: #5c5cff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.refresh-btn:hover { background: #f5f5ff; border-color: #5c5cff; }
+
+/* 요약 카드 */
+.joblist-summary {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.summary-card {
+  background: white;
+  padding: 24px;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+  transition: transform 0.2s;
+}
+
+.summary-card:hover { transform: translateY(-4px); }
+.summary-card.all { border-top: 4px solid #5c5cff; }
+.summary-card.processing { border-top: 4px solid #3b82f6; }
+.summary-card.completed { border-top: 4px solid #10b981; }
+.summary-card.failed { border-top: 4px solid #f43f5e; }
+
+.summary-label { color: #94a3b8; font-weight: 600; font-size: 13px; }
+.summary-count { display: block; font-size: 1.8rem; color: #1e293b; margin-top: 8px; }
+
+/* 상단바 */
+.joblist-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.search-box { position: relative; width: 400px; }
+.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+.search-box input {
+  width: 100%;
+  padding: 12px 12px 12px 42px;
+  border-radius: 14px;
+  border: 1.5px solid #e2e8f0;
+  outline: none;
+}
+.search-box input:focus { border-color: #5c5cff; }
+
+/* 폴링 정보 */
+.polling-info { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #64748b; }
+.dot-blink { width: 8px; height: 8px; background: #10b981; border-radius: 50%; animation: blink 1s infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* 테이블 컨테이너 및 고정 그리드 정렬 */
+.joblist-table-container {
+  background: white;
+  border-radius: 24px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.joblist-table-head, .joblist-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 200px 150px 120px;
+  padding: 18px 30px;
+  align-items: center;
+}
+
+.joblist-table-head {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.joblist-row { border-bottom: 1px solid #f1f5f9; }
+.joblist-row:last-child { border-bottom: none; }
+.joblist-row:hover { background: #fcfdff; }
+
+.col-url {
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 20px;
+}
+
+.col-id { color: #94a3b8; font-family: monospace; }
+.col-date { color: #64748b; font-size: 13px; }
+
+/* 상태 배지 */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 50px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-badge.completed { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.status-badge.processing { background: rgba(92, 92, 255, 0.1); color: #5c5cff; }
+.status-badge.pending { background: #f1f5f9; color: #64748b; }
+.status-badge.failed { background: rgba(244, 63, 94, 0.1); color: #f43f5e; }
+
+/* 버튼 디자인 */
+.btn-report {
+  background: #5c5cff;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-report:hover { background: #4a4aff; }
+
+.analyzing-text { font-size: 12px; color: #94a3b8; font-style: italic; }
+
+.spin-icon { animation: spin 2s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

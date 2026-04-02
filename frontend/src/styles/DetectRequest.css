@@ -1,0 +1,199 @@
+/* 탐지 요청 페이지 전체 컨테이너 */
+.detect-wrapper {
+  width: 100%;
+  max-width: 800px; 
+  margin: 0 auto;
+  padding: 0 24px 60px;
+  font-family: 'Pretendard', sans-serif;
+}
+
+/* 페이지 헤더 */
+.detect-wrapper h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.detect-wrapper .page-desc {
+  color: #64748B;
+  font-size: 0.95rem;
+  margin-bottom: 40px;
+}
+
+/* 입력 폼  */
+.detect-form {
+  background: #ffffff;
+  padding: 40px;
+  border-radius: 24px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.02);
+}
+
+.detect-form .section {
+  margin-bottom: 32px;
+}
+
+.detect-form label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1E293B;
+  margin-bottom: 12px;
+}
+
+.detect-form label svg {
+  color: #5C5CFF;
+}
+
+/* URL 입력창 스타일 */
+.detect-form input[type="url"] {
+  width: 100%;
+  padding: 16px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 14px;
+  font-size: 15px;
+  transition: all 0.2s ease;
+  background-color: #F8FAFC;
+}
+
+.detect-form input[type="url"]:focus {
+  outline: none;
+  border-color: #5C5CFF;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(92, 92, 255, 0.1);
+}
+
+/* 드롭다운 스타일  */
+.face-select-dropdown {
+  width: 100%;
+  padding: 16px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 14px;
+  font-size: 15px;
+  color: #1E293B;
+  background-color: #F8FAFC;
+  cursor: pointer;
+  appearance: none; /* 기본 브라우저 화살표 제거 */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  transition: all 0.2s ease;
+}
+
+.face-select-dropdown:focus {
+  outline: none;
+  border-color: #5C5CFF;
+  background-color: #ffffff;
+}
+
+/* 선택된 사진 미리보기 영역 */
+.selected-preview-min {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 16px;
+  background: #F0F5FF;
+  border-radius: 16px;
+  border: 1px dashed #5C5CFF;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.selected-preview-min img {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.selected-preview-min span {
+  font-size: 14px;
+  color: #5C5CFF;
+  font-weight: 600;
+}
+
+/* 제출 버튼 */
+.btn-submit {
+  width: 100%;
+  padding: 18px;
+  background: #5C5CFF;
+  color: white;
+  border: none;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background: #4A4AFF;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(92, 92, 255, 0.25);
+}
+
+.btn-submit:disabled {
+  background: #CBD5E1;
+  cursor: not-allowed;
+}
+
+/* 사진이 없을 때 안내 */
+.no-photo-card {
+  background: #ffffff;
+  border-radius: 28px;
+  border: 1px solid #E2E8F0;
+  text-align: center;
+  padding: 60px 40px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05);
+}
+
+.no-photo-card h2 {
+  font-size: 1.5rem;
+  margin-bottom: 12px;
+  color: #1E293B;
+}
+
+.no-photo-card p {
+  color: #64748B;
+  margin-bottom: 32px;
+}
+
+.btn-go-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  background: #1E293B;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-go-upload:hover {
+  background: #0F172A;
+  transform: scale(1.02);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 반응형 모바일 대응 */
+@media (max-width: 640px) {
+  .detect-form {
+    padding: 24px;
+  }
+  
+  .detect-wrapper h1 {
+    font-size: 1.5rem;
+  }
+}

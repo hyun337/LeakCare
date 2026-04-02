@@ -1,0 +1,56 @@
+:root {
+  --primary: #4f46e5;       
+  --primary-hover: #4338ca;
+  --bg-page: #f8fafc;       
+  --white: #ffffff;
+  
+  /* 상태 컬러 */
+  --danger: #ef4444;        /* 유출 확인 */
+  --success: #22c55e;       /* 안전 */
+  --warning: #f59e0b;       /* 분석 중 */
+  
+  /* 테두리 및 텍스트 */
+  --border: #e2e8f0;
+  --text-main: #1e293b;
+  --text-sub: #64748b;
+  
+  --sidebar-width: 260px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Pretendard', -apple-system, sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  line-height: 1.6;
+}
+
+/* 공통 카드 스타일 (대시보드, 로그인 박스 사용) */
+.common-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* 공통 버튼 스타일 */
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}

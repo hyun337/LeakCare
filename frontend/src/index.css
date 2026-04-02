@@ -1,0 +1,39 @@
+:root {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  /* 배경은 밝게, 글자는 어둡게 고정 (설계서 가독성 기준) */
+  color: #1a1a1a;
+  background-color: #f8fafc;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  display: block; /* center 설정을 지우고 block으로 변경 */
+  min-width: 100vw;
+  min-height: 100vh;
+}
+
+/* 링크 스타일 초기화 */
+a {
+  font-weight: 500;
+  color: #4f46e5;
+  text-decoration: none;
+}
+
+/* 제목 스타일 */
+h1, h2, h3 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* 모든 요소에 box-sizing 적용 (레이아웃 깨짐 방지) */
+* {
+  box-sizing: border-box;
+}
