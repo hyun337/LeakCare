@@ -1,9 +1,8 @@
 - ### ‼️ 시작
-
   1. 환경 설정
     pip install playwright insightface onnxruntime-gpu opencv-python reportlab httpx playwright install chromium
   2. 실행 방법
-    ### source .venv/bin/activate → 터미널에 먼저 입력 (가상 환경)
+    ❗️ source .venv/bin/activate → 터미널에 먼저 입력 (가상 환경)
     python main.py "https://example.com/post/1" --mode single
   3. 게시판 전체 분석
     python main.py "https://example.com/board" --mode board --start 1 --end 5
