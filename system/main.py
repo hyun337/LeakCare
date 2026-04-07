@@ -37,7 +37,7 @@ async def download_image(url):
 # ─────────────────────────────
 async def send_to_backend(target_url, name, evidence_info):
     # 백엔드 서버로 분석 요청 및 메타데이터 전송
-    base_url = "https://78fa-121-67-233-19.ngrok-free.app"
+    base_url = "https://ce62-2406-5900-1018-ac01-7587-5944-8e50-3d76.ngrok-free.app"
     analyze_url = f"{base_url}/api/v1/detection/analyze"
     metadata_url = f"{base_url}/api/v1/detection/metadata"
     login_url = f"{base_url}/api/v1/users/login"
@@ -58,7 +58,7 @@ async def send_to_backend(target_url, name, evidence_info):
             
             if res_analyze.status_code == 200:
                 task_id = res_analyze.json().get('task_id')
-                print(f"✅ [API] 분석 요청 성공! (Task ID: {task_id})")
+               # print(f"✅ [API] 분석 요청 성공! (Task ID: {task_id})")
                 
                 # 2단계: 메타데이터 전송
                 metadata_payload = {
@@ -73,7 +73,8 @@ async def send_to_backend(target_url, name, evidence_info):
                 res_meta = await client.post(metadata_url, json=metadata_payload, headers=headers, timeout=10.0)
 
                 if res_meta.status_code in [200, 201]:
-                    print(f"☑️ [API] DB 메타데이터 저장 완료! (IP: {evidence_info['ip']})")
+                 #   print(f"☑️ [API] DB 메타데이터 저장 완료! (IP: {evidence_info['ip']})")
+                    pass
                 else:
                     print(f"⚠️ [API] 메타데이터 저장 실패: {res_meta.status_code}")
                 return task_id
@@ -151,26 +152,34 @@ async def main():
         print(f"🔍 AI 분석 시작 (대상: {len(all_images)}건)...")
 
         for idx, (img_url, source_page) in enumerate(all_images):
+            # 실시간 진행 상황 표시
+            print(f"     [{idx+1}/{len(all_images)}] 분석 진행 중...", end="\r")
             img_data = await download_image(img_url)
+
+            # 분석 결과가 있든 없든 조사한 게시물의 메타데이터를 즉시 전송
+            current_evidence = {
+                "ip": ip, "country": country, "city": city,
+                "screenshot_path": os.path.join(current_dir, filename),
+                "timestamp": time.strftime('%Y-%m-%d %H:%M:%S'),
+                "img_url": img_url # 개별 이미지 URL 추가
+            }
+
             if img_data and len(img_data) > 10240:
                 analysis = await ai_module.analyze_face(img_data)
                 results = analysis.get('results', [])
-                
-                # 분석 결과가 있든 없든 조사한 게시물의 메타데이터를 즉시 전송
-                current_evidence = {
-                    "ip": ip, "country": country, "city": city,
-                    "screenshot_path": os.path.join(current_dir, filename),
-                    "timestamp": time.strftime('%Y-%m-%d %H:%M:%S'),
-                    "img_url": img_url # 개별 이미지 URL 추가
-                }
-                # 실시간 동기화 호출
-                await send_to_backend(source_page, "이서현", current_evidence)
-
                 for face in results:
                     score = face.get('score', 0)
                     if score >= 0.85:
-                        print(f"   ⚠️ 유출 의심 발견! [{idx+1}] 점수: {score}...")
+                        print(f"   ⚠️ 유출 의심 발견! [{idx+1}번 이미지] 점수: {score}...")
                         matched.append({"url": img_url, "page": source_page, "score": score})
+                
+            # 실시간 동기화 호출
+            await send_to_backend(source_page, "이서현", current_evidence)
+            await asyncio.sleep(0.5)
+                
+                
+        print(f"\n✅ 모든 분석 및 API 연동이 완료되었습니다.") # 루프 종료 후 줄바꿈
+
         end_time = time.time()
         print("-" * 50)
         print(f"✅ 분석 완료! (소요 시간: {int(end_time - start_time)}초)")
@@ -184,7 +193,6 @@ async def main():
             "screenshot_path": os.path.join(current_dir, filename),
             "timestamp": current_time
         }
-        await send_to_backend(args.url, "이서현", evidence_info)
 
         # 6. PDF 보고서 생성
         report_filename = filename.replace(".png", "_report.pdf")
@@ -202,6 +210,4 @@ async def main():
         await bm.stop() 
 
 if __name__ == "__main__":
-    asyncio.run(main())
-
-
+    asyncio.run(main())    
