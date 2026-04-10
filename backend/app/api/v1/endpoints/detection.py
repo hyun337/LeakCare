@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks
 from typing import List, Optional
 from app.schemas.metadata import MetadataCreate 
 from app.schemas.detection import DetectionRequest, DetectionResponse, DetectionDetailResponse
@@ -54,14 +54,16 @@ async def run_analysis_and_update(task_id: str, url: str):
 
     except Exception as e:
         # 전체 로직 에러 캐치 및 상세 내용 기록
-        result_data = {"status": "failed", "error": f"System Error: {str(e)}"}
-        print(f"DEBUG: Task {task_id} failed with: {repr(e)}")
+        error_msg = f"Detail: {repr(e)}"
+        result_data = {"status": "failed", "error": error_msg}
+        print(f"!!! [TASK FAILED] {task_id}: {error_msg}") # Render 로그에서도 확인 가능
 
 
 # 탐지 요청 엔드포인트
 @router.post("/analyze", response_model=DetectionResponse, summary="Detection Request")
 async def analyze_content(
     request_in: DetectionRequest,
+    background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user) # 여기서 토큰 검사 및 유저 추출 
 ):
     
@@ -82,7 +84,7 @@ async def analyze_content(
     await db_instance.db.detection_tasks.insert_one(new_task)
 
     # 2. 비동기로 분석 작업 시작 (사용자가 기다리지 않도록)
-    asyncio.create_task(run_analysis_and_update(task_id, str(request_in.url)))
+    background_tasks.add_task(run_analysis_and_update, task_id, str(request_in.url))    
     
     return {
         "task_id": task_id,
