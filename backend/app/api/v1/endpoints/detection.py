@@ -8,6 +8,7 @@ import asyncio
 import random
 from datetime import datetime
 from app.api.v1.dependencies import get_current_user
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
 router = APIRouter()
 
@@ -26,26 +27,35 @@ async def mock_ai_analysis(url: str):
         "ai_description": f"해당 사이트 분석 결과 위험도 {score}점이 감지되었습니다."
     }
 
-async def run_analysis_and_update(task_id: str, url: str):
 
+async def run_analysis_and_update(task_id: str, url: str):
+    browser = None
     try:
-        # 1. 가짜 AI 분석 수행
-        result_data = await mock_ai_analysis(url)
-        
-        # 2. DB 업데이트 (상태를 'completed'로 변경)
-        await db_instance.db.detection_tasks.update_one(
-            {"task_id": task_id},
-            {
-                "$set": {
-                    "status": "completed",
-                    "result": result_data,
-                    "updated_at": datetime.now()
-                }
-            }
-        )
-        print(f"Task {task_id} 분석 완료 및 DB 업데이트 성공")
+        async with async_playwright() as p:
+            # 리눅스 서버 환경에서 안정적인 구동을 위한 필수 옵션들 추가
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    "--no-sandbox", 
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage" # 메모리 부족 에러 방지
+                ]
+            )
+            context = await browser.new_context()
+            page = await context.new_page()
+            
+            # 페이지 이동 (에러 상세 확인을 위해 에러 로그 출력 추가)
+            try:
+                await page.goto(url, timeout=25000, wait_until="domcontentloaded")
+                page_title = await page.title()
+                result_data = {"status": "completed", "title": page_title}
+            except Exception as inner_e:
+                result_data = {"status": "failed", "error": f"Page Load Error: {str(inner_e)}"}
+
     except Exception as e:
-        print(f"Task {task_id} 분석 중 오류 발생: {e}")
+        # 전체 로직 에러 캐치 및 상세 내용 기록
+        result_data = {"status": "failed", "error": f"System Error: {str(e)}"}
+        print(f"DEBUG: Task {task_id} failed with: {repr(e)}")
 
 
 # 탐지 요청 엔드포인트
