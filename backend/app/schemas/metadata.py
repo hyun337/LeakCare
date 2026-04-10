@@ -9,6 +9,7 @@ class MetadataCreate(BaseModel):
     country: Optional[str] = Field(None, description="서버 국가")
     city: Optional[str] = Field(None, description="서버 도시")
     screenshot_path: str = Field(..., description="저장된 증거 스크린샷 파일명 또는 경로")
+    video_path: Optional[str] = None
     collector_id: str = Field("system_engine_01", description="수집기 식별자")
     collected_at: datetime = Field(default_factory=datetime.now)
 

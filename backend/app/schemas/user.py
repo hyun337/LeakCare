@@ -8,7 +8,12 @@ class UserBase(BaseModel):
 
 # 회원가입할 때 (비밀번호 포함)
 class UserCreate(UserBase):
-    password: str # 프론트엔드에서 보낼 비밀번호
+    password: str = Field(
+        ..., 
+        min_length=8, 
+        max_length=15, 
+        description="8자 이상 15자 미만의 비밀번호"
+    )
 
 # 회원가입 완료 후 응답 (비밀번호 제외, ID 포함)
 class UserResponse(UserBase):
