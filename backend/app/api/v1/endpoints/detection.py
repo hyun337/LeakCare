@@ -13,50 +13,38 @@ from playwright.async_api import async_playwright, TimeoutError as PlaywrightTim
 router = APIRouter()
 
 # 가상 AI 분석 로직
-async def mock_ai_analysis(url: str):
-
-    await asyncio.sleep(5)  # 5초간 분석하는 척 대기
-    
-    score = random.randint(15, 98)
-    items = ["email", "password", "api_key", "db_credential"]
-    
-    return {
-        "score": score,
-        "leaked_items": random.sample(items, random.randint(1, 3)),
-        "is_malicious": score > 70,
-        "ai_description": f"해당 사이트 분석 결과 위험도 {score}점이 감지되었습니다."
-    }
-
-
 async def run_analysis_and_update(task_id: str, url: str):
     browser = None
     try:
         async with async_playwright() as p:
-            # 리눅스 서버 환경에서 안정적인 구동을 위한 필수 옵션들 추가
             browser = await p.chromium.launch(
                 headless=True,
                 args=[
-                    "--no-sandbox", 
+                    "--no-sandbox",
                     "--disable-setuid-sandbox",
-                    "--disable-dev-shm-usage" # 메모리 부족 에러 방지
+                    "--disable-dev-shm-usage", # 공유 메모리 사용 안함 (메모리 절약)
+                    "--disable-gpu",           # GPU 가속 끔 (서버 환경 필수)
+                    "--single-process",        # 프로세스를 하나로 통합 (가장 중요)
+                    "--js-flags='--max-old-space-size=128'" # JS 엔진 메모리 제한
                 ]
             )
             context = await browser.new_context()
             page = await context.new_page()
             
-            # 페이지 이동 (에러 상세 확인을 위해 에러 로그 출력 추가)
-            try:
-                await page.goto(url, timeout=25000, wait_until="domcontentloaded")
-                page_title = await page.title()
-                result_data = {"status": "completed", "title": page_title}
-            except Exception as inner_e:
-                result_data = {"status": "failed", "error": f"Page Load Error: {str(inner_e)}"}
+            # 리소스를 많이 잡아먹는 이미지, 폰트 로딩 차단
+            await page.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2}", lambda route: route.abort())
 
+            # 접속 시도 (타임아웃 짧게)
+            await page.goto(url, timeout=15000, wait_until="commit")
+            
+            title = await page.title()
+            result_data = {"status": "completed", "title": title}
+            
     except Exception as e:
-        # 전체 로직 에러 캐치 및 상세 내용 기록
-        error_msg = f"Detail: {repr(e)}"
-        result_data = {"status": "failed", "error": error_msg}
-        print(f"!!! [TASK FAILED] {task_id}: {error_msg}") # Render 로그에서도 확인 가능
+        result_data = {"status": "failed", "error": f"Resource Limit or Error: {repr(e)}"}
+    finally:
+        if browser:
+            await browser.close()
 
 
 # 탐지 요청 엔드포인트
