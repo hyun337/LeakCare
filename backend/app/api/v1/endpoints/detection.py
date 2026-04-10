@@ -70,20 +70,37 @@ async def analyze_content(
     # 가짜 작업 ID 생성 
     task_id = str(uuid.uuid4())
     
-    # 1. DB 저장
+    # 1. 저장할 데이터 준비 (모든 객체를 문자열로 강제 변환)
     new_task = {
         "task_id": task_id,
-        "user_id": str(current_user["_id"]), # 로그인한 유저의 실제 DB 고유 ID
-        "user_email": current_user["email"], # 관리용 이메일
+        "user_id": str(current_user["_id"]), 
+        "user_email": str(current_user["email"]),
         "url": str(request_in.url),
-        "target_name": request_in.target_name,
+        "target_name": str(request_in.target_name),
         "status": "processing",
         "result": None,
-        "created_at": datetime.now()
+        "created_at": datetime.now(),
+        "updated_at": datetime.now()
     }
-    await db_instance.db.detection_tasks.insert_one(new_task)
 
-    # 2. 비동기로 분석 작업 시작 (사용자가 기다리지 않도록)
+    try:
+        # 2. DB 저장 시도 및 결과 확인
+        print(f"MongoDB에 데이터 저장 시도 중... (Task ID: {task_id})")
+        insert_result = await db_instance.db.detection_tasks.insert_one(new_task)
+        
+        if insert_result.acknowledged:
+            print(f"DB 초기 저장 성공! ID: {insert_result.inserted_id}")
+        else:
+            print("DB 저장 응답이 확인되지 않았습니다.")
+
+    except Exception as e:
+        print(f"DB 저장 중 오류: {repr(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"DB 기록 실패: {str(e)}"
+        )
+
+    # 3. DB 저장이 확실히 된 '후'에 분석 작업 시작
     background_tasks.add_task(run_analysis_and_update, task_id, str(request_in.url))    
     
     return {
