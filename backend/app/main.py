@@ -4,6 +4,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from app.core.database import connect_to_mongo, close_mongo_connection
 from app.api.v1.api import api_router
+from ai.register import Register 
+import asyncio
+import sys
+
+
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 app = FastAPI(title="LeakCare")
 
@@ -25,6 +32,12 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     await connect_to_mongo()
+    
+    # AI 모델 사전 로딩（서버 시작 시 1회만 실행)
+    loop = asyncio.get_event_loop()
+    app.state.register = await loop.run_in_executor(None, Register)
+    print("AI 모델 로딩 완료")
+
 
 # 서버 종료 시 실행
 @app.on_event("shutdown")
