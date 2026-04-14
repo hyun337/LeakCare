@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from app.core.database import connect_to_mongo, close_mongo_connection
 from app.api.v1.api import api_router
 from ai.register import Register 
+from pymongo.errors import PyMongoError
 import asyncio
 import sys
 
@@ -51,6 +52,26 @@ async def root():
 app.include_router(api_router, prefix="/api/v1")
 
 
+# 데이터베이스(MongoDB) 관련 에러 처리
+@app.exception_handler(PyMongoError)
+async def pymongo_exception_handler(request: Request, exc: PyMongoError):
+    print(f"DB 에러 발생: {str(exc)}")
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "DB 점검 중입니다. 잠시 후 다시 시도해주세요."}
+    )
+
+# 전역 서버 내부 에러 처리
+@app.exception_handler(Exception)
+async def universal_exception_handler(request: Request, exc: Exception):
+    print(f"예상치 못한 서버 오류: {str(exc)}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "일시적인 서버 오류가 발생했습니다. 관리자에게 문의하세요."}
+    )
+    
+    
+    
 # 에러별 메시지 설정
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
@@ -78,3 +99,5 @@ async def validation_exception_handler(request, exc):
             "error_field": error_field  # 어떤 필드가 틀렸는지 
         }
     )
+    
+    
