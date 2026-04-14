@@ -16,7 +16,6 @@ export const registerUser = async ({ name, email, password }) => {
   });
 
   const text = await response.text();
-
   let data;
   try {
     data = JSON.parse(text);
@@ -24,11 +23,7 @@ export const registerUser = async ({ name, email, password }) => {
     data = { detail: text };
   }
 
-  return {
-    ok: response.ok,
-    status: response.status,
-    data,
-  };
+  return { ok: response.ok, status: response.status, data };
 };
 
 // 로그인
@@ -48,7 +43,6 @@ export const loginUser = async ({ email, password }) => {
   });
 
   const text = await response.text();
-
   let data;
   try {
     data = JSON.parse(text);
@@ -56,9 +50,20 @@ export const loginUser = async ({ email, password }) => {
     data = { detail: text };
   }
 
-  return {
-    ok: response.ok,
-    status: response.status,
-    data,
-  };
+  return { ok: response.ok, status: response.status, data };
+};
+
+// 회원 탈퇴
+export const deleteUser = async ({ userId }) => {
+  const token = localStorage.getItem('accessToken');
+
+  const response = await fetch(`${BASE_URL}/users/${userId}`, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  return { ok: response.ok, status: response.status };
 };
