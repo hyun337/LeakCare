@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/SettingsPage.css';
-import { deleteUser } from '../api/userApi'; // ✅ 추가
+import { deleteUser } from '../api/userApi'; // 
 
 function SettingsPage() {
   const navigate = useNavigate();
@@ -11,7 +11,7 @@ function SettingsPage() {
   const [emailAlert, setEmailAlert] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [pwMessage, setPwMessage] = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false); // ✅ 추가
+  const [deleteLoading, setDeleteLoading] = useState(false); // 
 
   const handlePasswordChange = (e) => {
     e.preventDefault();
