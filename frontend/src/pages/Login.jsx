@@ -26,7 +26,6 @@ function Login() {
       console.log('로그인 상태코드:', result.status);
       console.log('로그인 응답내용:', result.data);
 
-      // 로그인실패
       if (!result.ok) {
         let errorMessage = '로그인에 실패했습니다.';
 
@@ -42,15 +41,13 @@ function Login() {
         return;
       }
 
-      // 로그인성공
-      localStorage.setItem('accessToken', 'login-success');
-
+      //  실제 토큰 및 유저 정보 저장
+      localStorage.setItem('accessToken', result.data.access_token);
+      localStorage.setItem('userId', result.data.user_id);
       localStorage.setItem('userEmail', email);
-      localStorage.setItem('userName', '사용자');
+      localStorage.setItem('userName', result.data.name);
 
       console.log('로그인 성공 → 대시보드 이동');
-
-      //대시보드로 이동(로그인 성공 시)
       navigate('/dashboard', { replace: true });
 
     } catch (error) {
