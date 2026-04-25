@@ -6,6 +6,8 @@ from app.core.database import connect_to_mongo, close_mongo_connection
 from app.api.v1.api import api_router
 from ai.register import Register 
 from pymongo.errors import PyMongoError
+
+
 import asyncio
 import sys
 
@@ -48,6 +50,7 @@ async def shutdown_event():
 @app.get("/")
 async def root():
     return {"message": "Server is running"}
+
 
 app.include_router(api_router, prefix="/api/v1")
 
@@ -101,3 +104,11 @@ async def validation_exception_handler(request, exc):
     )
     
     
+# 보안 헤더
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff" # 파일 형식 변조 방지
+    response.headers["X-Frame-Options"] = "DENY"         # 클릭재킹 방지
+    response.headers["X-XSS-Protection"] = "1; mode=block" # XSS 기초 방어
+    return response

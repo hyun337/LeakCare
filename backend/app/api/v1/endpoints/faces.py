@@ -7,6 +7,7 @@ import asyncio
 from app.core.database import db_instance
 from app.api.v1.dependencies import get_current_user
 from app.schemas.face import FaceRegisterResponse, FaceStatusResponse
+from app.utils.file_validator import validate_file_signature
 
 MAX_PHOTOS = 5
 
@@ -19,6 +20,13 @@ async def register_face(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user)
 ):
+    # 입구에서 가짜 파일 걸러내기
+    if not await validate_file_signature(file):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="변조된 파일 형식이거나 허용되지 않는 파일입니다. (JPG, PNG만 가능)"    
+        )
+    
     user_id = str(current_user["_id"])
 
     # 1. 현재 등록된 사진 수 확인
