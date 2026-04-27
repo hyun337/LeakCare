@@ -33,7 +33,7 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     evidence_data: {ip, location, screenshot_path, target_url}
     ai_results: [{url, score, page_url}, ...]
     """
-    # PDF 문서 생성을 위한 elements 준비
+    # PDF 문서 생성을 위한 바구니 준비
     doc = SimpleDocTemplate(output_path, pagesize=A4)
     elements = []
     
@@ -46,7 +46,7 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     elements.append(Paragraph("<b>[LeakCare] 디지털 콘텐츠 유출 보고서</b>", styles['Title']))
     elements.append(Spacer(1, 12))
 
-    # 2. 기본 정보 표 (Table)
+    # 2. 기본 수사 정보 표 (Table)
     info_data = [
         ["항목", "내용"],
         ["대상 URL", evidence_data.get('target_url', 'N/A')],
@@ -81,23 +81,40 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     # 4. AI 분석 탐지 결과 표
     elements.append(Paragraph(f"<b>[증거 2] AI 유출 의심 탐지 결과 (총 {len(ai_results)}건)</b>", styles['Heading2']))
     
-    analysis_data = [["순번", "유사도 점수", "이미지 원본 주소"]]
+    analysis_data = [["순번", "탐지된 얼굴", "유사도", "이미지 원본 주소"]]
+
     for idx, res in enumerate(ai_results):
-        # 긴 URL 생략 처리
-        short_url = res['url'][:60] + "..." if len(res['url']) > 60 else res['url']
-        analysis_data.append([idx + 1, f"{res['score']:.4f}", short_url])
+        # 1. 이미지 객체 생성 (파일이 존재할 경우)
+        face_img = "N/A"
+        if 'local_path' in res and os.path.exists(res['local_path']):
+            try:
+                # 표 안에 들어가기 적당한 크기로 조절 
+                face_img = Image(res['local_path'], width=50, height=50)
+            except:
+                face_img = "Error"
 
-    # 표가 비어있을 경우 예외 처리
+        short_url = res['url'][:50] + "..." if len(res['url']) > 50 else res['url']
+        
+        # 데이터 행에 face_img 객체 삽입
+        analysis_data.append([
+            idx + 1, 
+            face_img, 
+            f"{res['score']:.4f}", 
+            short_url
+        ])
+
     if len(ai_results) == 0:
-        analysis_data.append(["-", "0.0000", "탐지된 의심 사례가 없습니다."])
+        analysis_data.append(["-", "-", "0.0000", "탐지된 의심 사례가 없습니다."])
 
-    at = Table(analysis_data, colWidths=[40, 80, 330])
+    # 이미지 컬럼을 위해 colWidths 조정 (두 번째 컬럼에 60 할당)
+    at = Table(analysis_data, colWidths=[30, 60, 60, 300])
     at.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.orange), # 'brandy' 대신 표준색상 'orange' 사용
+        ('BACKGROUND', (0, 0), (-1, 0), colors.orange),
         ('FONTNAME', (0, 0), (-1, -1), 'KoreanFont'),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'), # 표 내용 중앙 정렬
     ]))
     elements.append(at)
 
