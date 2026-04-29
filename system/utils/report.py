@@ -33,11 +33,11 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     evidence_data: {ip, location, screenshot_path, target_url}
     ai_results: [{url, score, page_url}, ...]
     """
-    # PDF 문서 생성을 위한 바구니 준비
+    # PDF 문서 생성을 위한 바구니(elements) 준비
     doc = SimpleDocTemplate(output_path, pagesize=A4)
     elements = []
     
-    # 기본 스타일 시트 가져오기 및 한글 폰트 적용 
+    # 기본 스타일 시트 가져오기 및 한글 폰트 적용
     styles = getSampleStyleSheet()
     for style in styles.byName.values():
         style.fontName = 'KoreanFont'
@@ -88,14 +88,14 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
         face_img = "N/A"
         if 'local_path' in res and os.path.exists(res['local_path']):
             try:
-                # 표 안에 들어가기 적당한 크기로 조절 
+                # 표 안에 들어가기 적당한 크기로 조절 (예: 50x50)
                 face_img = Image(res['local_path'], width=50, height=50)
             except:
                 face_img = "Error"
 
         short_url = res['url'][:50] + "..." if len(res['url']) > 50 else res['url']
         
-        # 데이터 행에 face_img 객체 삽입
+        # ✅ 데이터 행에 face_img 객체 삽입
         analysis_data.append([
             idx + 1, 
             face_img, 
@@ -106,7 +106,7 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     if len(ai_results) == 0:
         analysis_data.append(["-", "-", "0.0000", "탐지된 의심 사례가 없습니다."])
 
-    # 이미지 컬럼을 위해 colWidths 조정 (두 번째 컬럼에 60 할당)
+    # ✅ 이미지 컬럼을 위해 colWidths 조정 (두 번째 컬럼에 60 할당)
     at = Table(analysis_data, colWidths=[30, 60, 60, 300])
     at.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.orange),
