@@ -41,7 +41,7 @@ async def update_task_result(task_id, evidence_info, ai_detected_results):
     """
     백엔드가 생성한 task_id 기반으로 최종 분석 결과를 DB에 업데이트합니다.
     """
-    base_url = "http://localhost:8000" 
+    base_url = "https://4aa4-121-67-233-19.ngrok-free.app" 
     update_url = f"{base_url}/api/v1/detection/tasks/{task_id}"
 
     payload = {
@@ -59,6 +59,7 @@ async def update_task_result(task_id, evidence_info, ai_detected_results):
     try:
         async with httpx.AsyncClient() as client:
             res = await client.patch(update_url, json=payload, timeout=10.0)
+            print(f"📨 [API] 응답: {res.status_code} | {res.text}")
             if res.status_code == 200:
                 print(f"✅ [API] Task {task_id} 결과 업데이트 성공")
             else:
