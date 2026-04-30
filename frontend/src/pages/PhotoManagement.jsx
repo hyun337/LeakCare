@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Upload, X, User, AlertCircle } from "lucide-react";
 import PhotoList from "./PhotoList";
+import { uploadPhoto } from "../api/photoApi";
 import "../styles/photo.css";
 
 function PhotoManagement({ photos, setPhotos }) {
@@ -9,53 +10,80 @@ function PhotoManagement({ photos, setPhotos }) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [faceDetectionError, setFaceDetectionError] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   const isPhotoLimitReached = photos.length >= MAX_PHOTOS;
 
   const handleFileSelect = (files) => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    setFaceDetectionError(null);
+
     if (isPhotoLimitReached) {
-      alert("최대 5장까지 등록 가능합니다. 기존 사진을 삭제해 주세요.");
+      setErrorMsg('최대 5장까지 등록 가능합니다. 기존 사진을 삭제해 주세요.');
       return;
     }
+
     const file = files[0];
     if (!file) return;
 
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
-      alert("JPG, PNG, WEBP 형식만 업로드 가능합니다.");
+      setErrorMsg('JPG, PNG, WEBP 형식만 업로드 가능합니다.');
       return;
     }
 
-    setFaceDetectionError(null);
+    if (file.size > 10 * 1024 * 1024) {
+      setErrorMsg('파일 크기는 10MB 이하만 가능합니다.');
+      return;
+    }
+
     setPendingFile({
       id: Date.now(),
+      file: file,
       previewUrl: URL.createObjectURL(file),
     });
   };
 
-  const handleStartScan = () => {
+  const handleStartScan = async () => {
     setIsAnalyzing(true);
     setFaceDetectionError(null);
+    setErrorMsg('');
+    setSuccessMsg('');
 
-    setTimeout(() => {
-      const isFaceDetected = Math.random() > 0.2;
+    try {
+      const res = await uploadPhoto(pendingFile.file);
 
-      if (isFaceDetected) {
-        const newPhoto = {
-          id: Date.now(),
-          url: pendingFile.previewUrl,
-          date: new Date().toISOString().split("T")[0],
-          name: `등록 사진 ${photos.length + 1}`,
-          status: "Safe",
-        };
-        setPhotos([...photos, newPhoto]);
-        setPendingFile(null);
-        alert("얼굴 분석이 완료되었습니다.");
-      } else {
-        setFaceDetectionError("얼굴을 찾을 수 없습니다. 다시 시도해 주세요.");
+      if (!res.ok) {
+        if (res.data?.error_code === 'FACE_NOT_FOUND') {
+          setFaceDetectionError('얼굴을 찾을 수 없습니다. 다시 시도해 주세요.');
+        } else if (res.data?.error_code === 'MULTIPLE_FACES') {
+          setFaceDetectionError('1명만 나온 사진을 올려주세요.');
+        } else {
+          setFaceDetectionError(res.data?.detail || '등록에 실패했습니다.');
+        }
+        return;
       }
+
+      const newPhoto = {
+        id: Date.now(),
+        url: pendingFile.previewUrl,
+        date: new Date().toISOString().split('T')[0],
+        name: `등록 사진 ${res.data.photo_count}`,
+        status: 'Safe',
+      };
+      setPhotos([...photos, newPhoto]);
+      setPendingFile(null);
+      setSuccessMsg(`얼굴 등록 완료 (${res.data.photo_count}/5)`);
+      setTimeout(() => setSuccessMsg(''), 3000);
+
+    } catch (err) {
+      console.error('사진 등록 실패:', err);
+      setErrorMsg('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
       setIsAnalyzing(false);
-    }, 2500);
+    }
   };
 
   return (
@@ -85,6 +113,18 @@ function PhotoManagement({ photos, setPhotos }) {
         <p className="page-desc">사진을 업로드하여 분석을 진행하세요. 최대 5장까지 등록 가능합니다.</p>
       </header>
 
+      {successMsg && (
+        <div style={{ background: '#f0fff4', border: '1px solid #b2f5c8', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+          <p style={{ color: 'green', fontSize: '0.85rem', margin: 0 }}>✓ {successMsg}</p>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div style={{ background: '#fff0f0', border: '1px solid #ffcccc', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+          <p style={{ color: 'red', fontSize: '0.85rem', margin: 0 }}>⚠️ {errorMsg}</p>
+        </div>
+      )}
+
       <section className="upload-container">
         {!pendingFile && !isPhotoLimitReached ? (
           <div
@@ -105,7 +145,7 @@ function PhotoManagement({ photos, setPhotos }) {
           <div className="pending-file-preview">
             <div className={`preview-card ${faceDetectionError ? "has-error" : ""}`}>
               <img src={pendingFile.previewUrl} alt="Preview" />
-              <button className="preview-close-btn" onClick={() => setPendingFile(null)}>
+              <button className="preview-close-btn" onClick={() => { setPendingFile(null); setFaceDetectionError(null); }}>
                 <X size={18} />
               </button>
               {faceDetectionError && (
