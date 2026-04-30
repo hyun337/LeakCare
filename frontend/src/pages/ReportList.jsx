@@ -1,17 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/ReportList.css';
 
 function ReportList() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState('전체');
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const dummyReports = [
-    { id: 1, url: 'https://example.com/site1', result: '유출 확인', date: '2026-03-25' },
-    { id: 2, url: 'https://test-site.org/page', result: '미확인', date: '2026-03-26' },
-  ];
+  useEffect(() => {
+    const loadReports = async () => {
+      try {
+        setLoading(true);
+        setError('');
 
-  const filtered = filter === '전체' ? dummyReports : dummyReports.filter(r => r.result === filter);
+        // TODO: API 완성 시 아래 주석 해제 후 더미데이터 제거
+        // const res = await getReports();
+        // setReports(res.data);
+
+        // (API 연동 전 임시)
+        setReports([
+          {
+            task_id: '1',
+            target_url: 'https://example.com/site1',
+            is_leaked: true,
+            created_at: '2026-03-25T00:00:00Z',
+          },
+          {
+            task_id: '2',
+            target_url: 'https://test-site.org/page',
+            is_leaked: false,
+            created_at: '2026-03-26T00:00:00Z',
+          },
+        ]);
+      } catch (err) {
+        console.error('보고서 목록 로딩 실패:', err);
+        setError('보고서 목록을 불러오는데 실패했습니다. 다시 시도해주세요.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadReports();
+  }, []);
+
+  const filtered = filter === '전체'
+    ? reports
+    : reports.filter(r => filter === '유출 확인' ? r.is_leaked : !r.is_leaked);
+
+  if (loading) {
+    return (
+      <div className="report-list-main">
+        <p>불러오는 중...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="report-list-main">
+        <p style={{ color: 'red' }}>{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="report-list-main">
@@ -46,26 +98,36 @@ function ReportList() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((report) => (
-              <tr key={report.id} onClick={() => navigate(`/reports/${report.id}`)}>
-                <td className="report-id">#{report.id}</td>
-                <td className="report-url">{report.url}</td>
-                <td>
-                  <span className={`report-verdict ${report.result === '유출 확인' ? 'leak' : 'safe'}`}>
-                    {report.result}
-                  </span>
-                </td>
-                <td className="report-date">{report.date}</td>
-                <td>
-                  <button
-                    className="report-detail-btn"
-                    onClick={(e) => { e.stopPropagation(); navigate(`/reports/${report.id}`); }}
-                  >
-                    상세 보기
-                  </button>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '20px' }}>
+                  보고서가 없습니다.
                 </td>
               </tr>
-            ))}
+            ) : (
+              filtered.map((report) => (
+                <tr key={report.task_id} onClick={() => navigate(`/reports/${report.task_id}`)}>
+                  <td className="report-id">#{report.task_id}</td>
+                  <td className="report-url">{report.target_url}</td>
+                  <td>
+                    <span className={`report-verdict ${report.is_leaked ? 'leak' : 'safe'}`}>
+                      {report.is_leaked ? '유출 확인' : '미확인'}
+                    </span>
+                  </td>
+                  <td className="report-date">
+                    {new Date(report.created_at).toLocaleDateString('ko-KR')}
+                  </td>
+                  <td>
+                    <button
+                      className="report-detail-btn"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/reports/${report.task_id}`); }}
+                    >
+                      상세 보기
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
