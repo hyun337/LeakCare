@@ -1,0 +1,250 @@
+.settings-main {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.settings-header {
+  margin-bottom: 24px;
+}
+
+.settings-title {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #1a1a18;
+  margin-bottom: 5px;
+  letter-spacing: -0.02em;
+}
+
+.settings-sub {
+  font-size: 0.82rem;
+  color: #a0a09a;
+}
+
+.settings-card {
+  background: #ffffff;
+  border: 0.5px solid #e8e8e4;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 14px;
+}
+
+.settings-card-danger {
+  border-color: #fca5a5;
+}
+
+.settings-card-label {
+  font-size: 0.75rem;
+  color: #a0a09a;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 18px;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-field label {
+  font-size: 0.82rem;
+  color: #6b6b66;
+  font-weight: 500;
+}
+
+.settings-field input {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 0.5px solid #e0e0da;
+  font-size: 0.875rem;
+  color: #1a1a18;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.settings-field input:focus {
+  border-color: #6d5bd0;
+}
+
+.settings-msg {
+  font-size: 0.82rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin: 0;
+}
+
+.settings-msg.success {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.settings-msg.error {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.settings-btn-primary {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: #6d5bd0;
+  color: #ffffff;
+  align-self: flex-start;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.settings-btn-primary:hover {
+  background: #5a48b8;
+  transform: translateY(-1px);
+}
+
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-toggle-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1a1a18;
+  margin-bottom: 3px;
+}
+
+.settings-toggle-desc {
+  font-size: 0.78rem;
+  color: #a0a09a;
+}
+
+.toggle-track {
+  width: 44px;
+  height: 24px;
+  border-radius: 99px;
+  background: #e0e0da;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle-track.on {
+  background: #6d5bd0;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 0.2s;
+}
+
+.toggle-track.on .toggle-thumb {
+  transform: translateX(20px);
+}
+
+.settings-danger-desc {
+  font-size: 0.82rem;
+  color: #a0a09a;
+  margin-bottom: 16px;
+}
+
+.settings-btn-danger {
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 0.5px solid #fca5a5;
+  background: #fef2f2;
+  color: #dc2626;
+  transition: all 0.15s;
+}
+
+.settings-btn-danger:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-box {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 32px;
+  width: 360px;
+  border: 0.5px solid #e8e8e4;
+}
+
+.modal-title {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #1a1a18;
+  margin-bottom: 8px;
+}
+
+.modal-desc {
+  font-size: 0.85rem;
+  color: #a0a09a;
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.modal-btn-cancel {
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border: 0.5px solid #e0e0da;
+  background: transparent;
+  color: #6b6b66;
+}
+
+.modal-btn-cancel:hover {
+  background: #f7f7f5;
+}
+
+.modal-btn-confirm {
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: #dc2626;
+  color: #ffffff;
+  transition: background 0.15s;
+}
+
+.modal-btn-confirm:hover {
+  background: #b91c1c;
+}
