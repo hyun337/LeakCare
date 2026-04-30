@@ -6,22 +6,30 @@ function Result() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  // 더미데이터 임시용
   const report = {
-    id,
-    result: '유출 확인',
+    task_id: id,
+    is_leaked: true,
     score: 94.5,
-    ip: '123.456.78.9',
+    ip_address: '123.456.78.9',
     country: 'South Korea',
-    url: 'https://example.com/site1',
-    collectedAt: '2026-03-25 14:32 KST',
+    city: 'Seoul',
+    target_url: 'https://example.com/site1',
+    collected_at: '2026-03-25T14:32:00Z',
+    screenshot_path: null,
   };
 
-  const isLeak = report.result === '유출 확인';
+  const isLeak = report.is_leaked;
+
+  // 날짜 포맷 변환 
+  const formattedDate = report.collected_at
+    ? new Date(report.collected_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+    : '-';
 
   return (
     <div className="result-main">
       <button className="result-back-btn" onClick={() => navigate('/reports')}>
-        ← 목록으로
+        ← 목록
       </button>
 
       <div className="result-header">
@@ -33,7 +41,10 @@ function Result() {
         <div className="result-card result-card-full">
           <div className="result-card-label">탐지 스크린샷</div>
           <div className="result-screenshot">
-            <span className="result-screenshot-placeholder">탐지 스크린샷 영역</span>
+            {report.screenshot_path
+              ? <img src={report.screenshot_path} alt="탐지 스크린샷" style={{ width: '100%' }} />
+              : <span className="result-screenshot-placeholder">탐지 스크린샷 영역</span>
+            }
           </div>
         </div>
 
@@ -53,16 +64,18 @@ function Result() {
         </div>
 
         <div className="result-card">
-          <div className="result-card-label">증거 메타데이터</div>
+          <div className="result-card-label">증거데이터</div>
           <table className="result-meta-table">
             <tbody>
               <tr><td>판정 결과</td><td>
-                <span className={`result-verdict ${isLeak ? 'leak' : 'safe'}`}>{report.result}</span>
+                <span className={`result-verdict ${isLeak ? 'leak' : 'safe'}`}>
+                  {isLeak ? '유출 확인' : '미확인'}
+                </span>
               </td></tr>
-              <tr><td>게시 URL</td><td>{report.url}</td></tr>
-              <tr><td>수집 일시</td><td>{report.collectedAt}</td></tr>
-              <tr><td>서버 IP</td><td>{report.ip}</td></tr>
-              <tr><td>국가</td><td>{report.country}</td></tr>
+              <tr><td>게시 URL</td><td>{report.target_url}</td></tr>
+              <tr><td>수집 일시</td><td>{formattedDate}</td></tr>
+              <tr><td>서버 IP</td><td>{report.ip_address}</td></tr>
+              <tr><td>국가</td><td>{report.country} {report.city}</td></tr>
             </tbody>
           </table>
           <p className="result-ip-notice">IP·위치 정보는 ip-api.com 기반으로 정확도에 한계가 있을 수 있습니다.</p>
