@@ -10,8 +10,8 @@ import {
   Search,
   FileText,
   AlertCircle,
-  Copy,
 } from 'lucide-react';
+import { getDetectionHistory } from '../api/jobApi';
 import '../styles/JobList.css';
 
 const JobList = ({ jobs, setJobs }) => {
@@ -19,31 +19,41 @@ const JobList = ({ jobs, setJobs }) => {
   const [keyword, setKeyword] = useState('');
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [error, setError] = useState('');
+
+  const fetchJobs = async () => {
+    try {
+      const res = await getDetectionHistory();
+      if (res.ok) {
+        setJobs(res.data);
+        setLastUpdated(new Date());
+      } else {
+        setError('작업 목록을 불러오는데 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('작업 목록 갱신 실패:', err);
+      setError('작업 목록을 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  };
 
   useEffect(() => {
+    fetchJobs();
     const interval = setInterval(() => {
-      setJobs((prevJobs) =>
-        prevJobs.map((job) => {
-          if (job.status === 'pending') return { ...job, status: 'processing' };
-          if (job.status === 'processing') return { ...job, status: 'completed' };
-          return job;
-        })
-      );
-      setLastUpdated(new Date());
+      fetchJobs();
     }, 5000);
-
     return () => clearInterval(interval);
-  }, [setJobs]);
+  }, []);
 
-  const handleRetry = (jobId) => {
+  const handleRetry = (taskId) => {
+    setError('');
     setJobs((prevJobs) =>
       prevJobs.map((job) =>
-        job.id === jobId
+        job.task_id === taskId
           ? {
               ...job,
               status: 'pending',
               errorMessage: '',
-              requestedAt: new Date().toLocaleString(),
+              created_at: new Date().toISOString(),
             }
           : job
       )
@@ -51,18 +61,9 @@ const JobList = ({ jobs, setJobs }) => {
     setLastUpdated(new Date());
   };
 
-  const handleRefresh = () => {
-    setLastUpdated(new Date());
-  };
-
-  const handleCopyJobId = async (e, jobId) => {
-    e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(String(jobId));
-      alert(`작업 ID #${jobId} 복사 완료`);
-    } catch (error) {
-      console.error('복사 실패:', error);
-    }
+  const handleRefresh = async () => {
+    setError('');
+    await fetchJobs();
   };
 
   const getStatusLabel = (status) => {
@@ -77,16 +78,11 @@ const JobList = ({ jobs, setJobs }) => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'pending':
-        return <Clock3 size={14} />;
-      case 'processing':
-        return <LoaderCircle size={14} className="spin-icon" />;
-      case 'completed':
-        return <CheckCircle2 size={14} />;
-      case 'failed':
-        return <XCircle size={14} />;
-      default:
-        return null;
+      case 'pending': return <Clock3 size={14} />;
+      case 'processing': return <LoaderCircle size={14} className="spin-icon" />;
+      case 'completed': return <CheckCircle2 size={14} />;
+      case 'failed': return <XCircle size={14} />;
+      default: return null;
     }
   };
 
@@ -98,42 +94,19 @@ const JobList = ({ jobs, setJobs }) => {
   const summaryCards = useMemo(
     () => [
       { label: '전체', value: 'all', className: 'all', count: jobs.length },
-      {
-        label: '대기',
-        value: 'pending',
-        className: 'pending',
-        count: jobs.filter((j) => j.status === 'pending').length,
-      },
-      {
-        label: '분석중',
-        value: 'processing',
-        className: 'processing',
-        count: jobs.filter((j) => j.status === 'processing').length,
-      },
-      {
-        label: '완료',
-        value: 'completed',
-        className: 'completed',
-        count: jobs.filter((j) => j.status === 'completed').length,
-      },
-      {
-        label: '오류',
-        value: 'failed',
-        className: 'failed',
-        count: jobs.filter((j) => j.status === 'failed').length,
-      },
+      { label: '대기', value: 'pending', className: 'pending', count: jobs.filter((j) => j.status === 'pending').length },
+      { label: '분석중', value: 'processing', className: 'processing', count: jobs.filter((j) => j.status === 'processing').length },
+      { label: '완료', value: 'completed', className: 'completed', count: jobs.filter((j) => j.status === 'completed').length },
+      { label: '오류', value: 'failed', className: 'failed', count: jobs.filter((j) => j.status === 'failed').length },
     ],
     [jobs]
   );
 
   const filteredJobs = jobs.filter((job) => {
-    const matchesKeyword = `${job.id} ${job.url} ${getStatusLabel(job.status)}`
+    const matchesKeyword = `${job.task_id} ${job.url} ${getStatusLabel(job.status)}`
       .toLowerCase()
       .includes(keyword.toLowerCase());
-
-    const matchesStatus =
-      selectedStatus === 'all' ? true : job.status === selectedStatus;
-
+    const matchesStatus = selectedStatus === 'all' ? true : job.status === selectedStatus;
     return matchesKeyword && matchesStatus;
   });
 
@@ -144,20 +117,23 @@ const JobList = ({ jobs, setJobs }) => {
           <h1>작업 목록</h1>
           <p>탐지 엔진이 실시간으로 URL을 분석 중입니다.</p>
         </div>
-
         <button type="button" className="refresh-btn" onClick={handleRefresh}>
           <RefreshCw size={16} /> 새로고침
         </button>
       </header>
+
+      {error && (
+        <div style={{ background: '#fff0f0', border: '1px solid #ffcccc', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+          <p style={{ color: 'red', fontSize: '0.85rem', margin: 0 }}>⚠️ {error}</p>
+        </div>
+      )}
 
       <section className="joblist-summary">
         {summaryCards.map((card) => (
           <button
             key={card.label}
             type="button"
-            className={`summary-card ${card.className} ${
-              selectedStatus === card.value ? 'active' : ''
-            }`}
+            className={`summary-card ${card.className} ${selectedStatus === card.value ? 'active' : ''}`}
             onClick={() => setSelectedStatus(card.value)}
           >
             <span className="summary-label">{card.label}</span>
@@ -176,14 +152,11 @@ const JobList = ({ jobs, setJobs }) => {
             onChange={(e) => setKeyword(e.target.value)}
           />
         </div>
-
         <div className="polling-info">
           <div className="dot-blink"></div>
           <div className="polling-meta">
             <span className="polling-text">5초 간격 자동 갱신 중</span>
-            <span className="time-label">
-              마지막 업데이트: {lastUpdated.toLocaleTimeString()}
-            </span>
+            <span className="time-label">마지막 업데이트: {lastUpdated.toLocaleTimeString()}</span>
           </div>
         </div>
       </section>
@@ -206,59 +179,33 @@ const JobList = ({ jobs, setJobs }) => {
           ) : (
             filteredJobs.map((job) => (
               <div
-                key={job.id}
+                key={job.task_id}
                 className="joblist-row clickable-row"
                 onClick={() => {
-                  if (job.status === 'completed') {
-                    navigate(`/reports/${job.id}`);
-                  }
+                  if (job.status === 'completed') navigate(`/reports/${job.task_id}`);
                 }}
               >
-                <div className="col-id">
-                  <div className="job-id-box">
-                    <span className="job-id-text">#{job.id}</span>
-                    <button
-                      type="button"
-                      className="copy-id-btn"
-                      title="작업 ID 복사"
-                      onClick={(e) => handleCopyJobId(e, job.id)}
-                    >
-                      <Copy size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="col-url" title={job.url}>
-                  {truncateUrl(job.url)}
-                </div>
-
-                <div className="col-date">{job.requestedAt}</div>
-
+                <div className="col-id">#{job.task_id?.slice(0, 8)}</div>
+                <div className="col-url" title={job.url}>{truncateUrl(job.url)}</div>
+                <div className="col-date">{job.created_at?.slice(0, 16).replace('T', ' ')}</div>
                 <div className="col-status">
                   <span className={`status-badge ${job.status}`}>
                     {getStatusIcon(job.status)}
                     {getStatusLabel(job.status)}
                   </span>
                 </div>
-
                 <div className="col-action">
                   {job.status === 'completed' ? (
                     <button
                       className="btn-report"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/reports/${job.id}`);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); navigate(`/reports/${job.task_id}`); }}
                     >
                       <FileText size={14} /> 보고서
                     </button>
                   ) : job.status === 'failed' ? (
                     <button
                       className="btn-retry"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRetry(job.id);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); handleRetry(job.task_id); }}
                     >
                       <RotateCcw size={14} /> 재시도
                     </button>
