@@ -1,34 +1,43 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ShieldCheck, AlertCircle, ImagePlus } from 'lucide-react';
+import { submitDetectRequest } from '../api/detectApi';
 import '../styles/DetectRequest.css';
 
-// AppRouter에서 넘겨준 props 유지
-const DetectRequest = ({ registeredPhotos, jobs, setJobs }) => {
+const DetectRequest = ({ registeredPhotos }) => {
   const navigate = useNavigate();
   const [url, setUrl] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // 폼 제출 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMsg('');
 
-    // 신규 작업 데이터 생성
-    const newJob = {
-      id: Date.now(), 
-      url: url,
-      requestedAt: new Date().toLocaleString(), 
-      status: 'pending', 
-      errorMessage: '',
-    };
+    try {
+      setLoading(true);
+      const res = await submitDetectRequest({ url });
 
-    
-    setJobs([newJob, ...jobs]);
+      if (!res.ok) {
+        if (Array.isArray(res.data?.detail)) {
+          setErrorMsg(res.data.detail.map(err => err.msg).join('\n'));
+        } else if (typeof res.data?.detail === 'string') {
+          setErrorMsg(res.data.detail);
+        } else {
+          setErrorMsg('탐지 요청에 실패했습니다.');
+        }
+        return;
+      }
 
-    alert("탐지 요청이 정상적으로 제출되었습니다. 등록된 모든 사진과 대조를 시작합니다.");
-    navigate('/jobs'); 
+      navigate('/jobs');
+    } catch (error) {
+      console.error('탐지 요청 오류:', error);
+      setErrorMsg('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 사진이 없을 때 예외 처리 
   if (registeredPhotos.length === 0) {
     return (
       <div className="detect-wrapper">
@@ -48,44 +57,54 @@ const DetectRequest = ({ registeredPhotos, jobs, setJobs }) => {
     <div className="detect-wrapper">
       <header className="page-header">
         <h1>새 탐지 요청</h1>
-        <p>의심되는 URL을 입력하면 등록된 모든 사진과 대조하여 분석을 시작합니다. (일일 한도 5건) </p> 
+        <p>의심되는 URL을 입력하면 등록된 모든 사진과 대조하여 분석을 시작합니다. (일일 한도 5건)</p>
       </header>
 
       <form className="detect-form" onSubmit={handleSubmit}>
         <div className="section">
-          <label><Search size={16} /> 의심 URL 입력</label> 
-          <input 
-            type="url" 
-            placeholder="https://example.com" 
-            value={url} 
-            onChange={(e) => setUrl(e.target.value)} 
-            required 
+          <label><Search size={16} /> 의심 URL 입력</label>
+          <input
+            type="url"
+            placeholder="https://example.com"
+            value={url}
+            onChange={(e) => {
+              setUrl(e.target.value);
+              setErrorMsg('');
+            }}
+            required
           />
         </div>
 
-        {/* 등록된 사진 정보 */}
         <div className="section">
           <label><ShieldCheck size={16} /> 분석 대상 안내</label>
           <div className="selected-preview-min" style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '10px', padding: '15px', background: '#f8f9fa', borderRadius: '12px' }}>
             <div style={{ display: 'flex', gap: '5px' }}>
               {registeredPhotos.slice(0, 5).map(photo => (
-                <img 
-                  key={photo.id} 
-                  src={photo.url} 
-                  alt="Thumbnail" 
-                  style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #ddd' }} 
+                <img
+                  key={photo.id}
+                  src={photo.url}
+                  alt="Thumbnail"
+                  style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #ddd' }}
                 />
               ))}
             </div>
             <div style={{ fontSize: '13px', color: '#5C5CFF', lineHeight: '1.4' }}>
               현재 등록된 <strong>{registeredPhotos.length}장</strong>의 사진으로 <br/>
-              실시간 교차 분석을 진행합니다. 
+              실시간 교차 분석을 진행합니다.
             </div>
           </div>
         </div>
 
-        <button type="submit" className="btn-submit" disabled={!url}>
-          탐지 요청 제출하기
+        {errorMsg && (
+          <div style={{ background: '#fff0f0', border: '1px solid #ffcccc', borderRadius: '8px', padding: '12px', marginBottom: '10px' }}>
+            <p style={{ color: 'red', fontSize: '0.85rem', margin: 0 }}>
+              ⚠️ {errorMsg}
+            </p>
+          </div>
+        )}
+
+        <button type="submit" className="btn-submit" disabled={!url || loading}>
+          {loading ? '요청 중...' : '탐지 요청 제출하기'}
         </button>
       </form>
     </div>
