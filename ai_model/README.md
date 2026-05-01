@@ -19,3 +19,4 @@ ai/
 │   └── deepfake_efficientnet_b4.pth   # 파인튜닝한 모델
 
 ```
+[가중치파일](https://drive.google.com/file/d/1myM2Z2nM7nACYW8W2FExeJR2B5e2HaN7/view?usp=drive_link)
