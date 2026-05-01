@@ -19,4 +19,6 @@ ai/
 
 ```
 [딥페이크 탐지 가중치 파일](https://drive.google.com/file/d/1myM2Z2nM7nACYW8W2FExeJR2B5e2HaN7/view?usp=sharing)
+
+
 [Face Parsing 가중치 파일](https://drive.google.com/file/d/17aOAnvYOw0mFvihM7krab-VkN3rMHAKQ/view?usp=sharing)
