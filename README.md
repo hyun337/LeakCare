@@ -41,6 +41,7 @@ AI 기반 딥페이크 및 불법 유출물 통합 탐지·대응 플랫폼
         - 수집된 데이터의 백엔드 전달 및 아카이빙 구조 설계
        
 - ### 시스템 구조 설계
+```
  leakcare/ (Root)
 ├── .gitignore               # GitHub 제외 파일 설정 (Kaggle 데이터, .env 등)
 ├── README.md                # 전체 프로젝트 실행 및 설치 가이드
@@ -116,3 +117,4 @@ _│   ├── __init__.py          # 패키지 인식용_
     ├── index.html               # 메인 HTML 템플릿
     └── tailwind.config.js       # Tailwind CSS 상세 설정
     └── package.json         # 패키지 관리
+```
