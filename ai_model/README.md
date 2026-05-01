@@ -17,6 +17,11 @@ ai/
 ├── deepfake/
 │   ├── deepfake_detector.py           # 딥페이크 탐지
 │   └── deepfake_efficientnet_b4.pth   # 파인튜닝한 모델
+├── models/
+│   └── face_parding.pth               # 가림탐지(face parsing) 모델
+└──
+
 
 ```
-[가중치파일](https://drive.google.com/file/d/1myM2Z2nM7nACYW8W2FExeJR2B5e2HaN7/view?usp=drive_link)
+[딥페이크 탐지 가중치 파일](https://drive.google.com/file/d/1myM2Z2nM7nACYW8W2FExeJR2B5e2HaN7/view?usp=sharing)
+[Face Parsing 가중치 파일](https://drive.google.com/file/d/17aOAnvYOw0mFvihM7krab-VkN3rMHAKQ/view?usp=sharing)
