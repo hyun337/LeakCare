@@ -38,3 +38,21 @@ class DetectionDetailResponse(BaseModel):
 
     # 몽고디비 데이터를 Pydantic으로 변환할 때 필요한 설정
     model_config = ConfigDict(from_attributes=True)
+    
+    
+class DetectionMetadata(BaseModel):
+    ip_address: str
+    country: str
+    city: str
+    collected_at: str
+
+class DetectionResult(BaseModel):
+    url: str
+    score: float
+    page_url: str
+
+class TaskUpdateRequest(BaseModel):
+    status: str
+    metadata: DetectionMetadata
+    results: List[DetectionResult]
+    screenshot_path: str

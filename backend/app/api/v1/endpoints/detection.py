@@ -1,14 +1,18 @@
 from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks
 from typing import List, Optional
 from app.schemas.metadata import MetadataCreate 
-from app.schemas.detection import DetectionRequest, DetectionResponse, DetectionDetailResponse
+from app.schemas.detection import DetectionRequest, DetectionResponse, DetectionDetailResponse, TaskUpdateRequest
 from app.core.database import db_instance
 import uuid
 import asyncio
 import random
+import subprocess
+import os
+import sys 
 from datetime import datetime
 from app.api.v1.dependencies import get_current_user
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
+from app.services.selector import get_system_mode
 
 router = APIRouter()
 
@@ -47,6 +51,45 @@ async def run_analysis_and_update(task_id: str, url: str):
             await browser.close()
 
 
+# [외부 엔진 실행을 위한 비동기 래퍼 함수]
+async def run_system_engine(task_id: str, url: str, mode: str):
+    """
+    BackgroundTasks에 의해 실행될 실제 엔진 호출 함수
+    """
+    try:
+        current_file = os.path.abspath(__file__)
+        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file)))))
+        
+        path = current_file
+        for _ in range(5):
+            path = os.path.dirname(path)
+        backend_root = path 
+        
+        script_path = os.path.join(backend_root, "system", "main.py")
+        
+        print(f"--- 경로 디버깅 ---")
+        print(f"계산된 엔진 경로: {script_path}")
+        print(f"파일 존재 여부: {os.path.exists(script_path)}")
+        print(f"------------------")
+        
+        if not os.path.exists(script_path):
+             print(f"에러: {script_path} 경로에 파일이 없습니다. 폴더 구조를 확인하세요.")
+             return
+        
+        # 윈도우 환경에서 가상환경 파이썬을 정확히 사용하도록 sys.executable 권장
+        process = subprocess.Popen([
+            sys.executable, script_path, 
+            url, 
+            "--mode", mode, 
+            "--task_id", task_id
+        ])
+        
+        print(f"시스템 엔진 실행 시작 (PID: {process.pid})")
+
+    except Exception as e:
+        print(f"엔진 실행 중 오류 발생: {str(e)}")
+
+
 # 탐지 요청 엔드포인트
 @router.post("/analyze", response_model=DetectionResponse, summary="Detection Request")
 async def analyze_content(
@@ -54,11 +97,12 @@ async def analyze_content(
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user) # 여기서 토큰 검사 및 유저 추출 
 ):
+    # 1. URL 패턴에 따른 모드 결정 (추가됨)
+    detected_mode = get_system_mode(str(request_in.url))
     
-    # 가짜 작업 ID 생성 
     task_id = str(uuid.uuid4())
     
-    # 1. 저장할 데이터 준비 (모든 객체를 문자열로 강제 변환)
+    # 2. 저장할 데이터 준비 (모든 객체를 문자열로 강제 변환)
     new_task = {
         "task_id": task_id,
         "user_id": str(current_user["_id"]), 
@@ -72,28 +116,24 @@ async def analyze_content(
     }
 
     try:
-        # 2. DB 저장 시도 및 결과 확인
-        print(f"MongoDB에 데이터 저장 시도 중... (Task ID: {task_id})")
+        # DB 저장 시도
         insert_result = await db_instance.db.detection_tasks.insert_one(new_task)
-        
-        if insert_result.acknowledged:
-            print(f"DB 초기 저장 성공! ID: {insert_result.inserted_id}")
-        else:
-            print("DB 저장 응답이 확인되지 않았습니다.")
-
+        if not insert_result.acknowledged:
+            raise Exception("DB acknowledge failed")
+            
     except Exception as e:
-        print(f"DB 저장 중 오류: {repr(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"DB 기록 실패: {str(e)}"
         )
 
-    # 3. DB 저장이 확실히 된 '후'에 분석 작업 시작
-    background_tasks.add_task(run_analysis_and_update, task_id, str(request_in.url))    
+    # 3. 백그라운드에서 실제 '외부 엔진' 실행 (변경됨)
+    background_tasks.add_task(run_system_engine, task_id, str(request_in.url), detected_mode)
     
     return {
         "task_id": task_id,
         "status": "processing",
+        "mode": detected_mode, # 프론트 확인용
         "result": None
     }
 
@@ -198,4 +238,36 @@ async def get_full_report(
         "task_id": task_id,
         "analysis_result": task,
         "server_details": metadata
+    }
+    
+    
+@router.patch("/tasks/{task_id}")
+async def update_task_result(
+    task_id: str,
+    body: TaskUpdateRequest,
+):
+    # 1. 업데이트할 데이터 준비 (Pydantic 모델을 딕셔너리로 변환)
+    update_data = {
+        "status": body.status,
+        "metadata": body.metadata.dict(), # 객체는 dict로 변환해서 저장
+        "results": [r.dict() for r in body.results],
+        "screenshot_path": body.screenshot_path,
+        "updated_at": datetime.now() # 업데이트 시간 기록
+    }
+
+    # 2. MongoDB 업데이트 실행
+    # task_id가 문자열이므로 필터링하여 $set 명령어로 수정
+    result = await db_instance.db.detection_tasks.update_one(
+        {"task_id": task_id}, 
+        {"$set": update_data}
+    )
+
+    # 3. 해당 Task가 존재하는지 확인
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="해당 태스크를 찾을 수 없습니다.")
+
+    return {
+        "message": "업데이트 성공", 
+        "task_id": task_id,
+        "modified_count": result.modified_count
     }
