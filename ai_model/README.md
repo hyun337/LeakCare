@@ -17,6 +17,5 @@ ai/
 ├── deepfake/
 │   ├── deepfake_detector.py           # 딥페이크 탐지
 │   └── deepfake_efficientnet_b4.pth   # 파인튜닝한 모델
-└── verdict/
-    └── judge.py                       # 종합 판정 (percent + status 반환)
+
 ```
