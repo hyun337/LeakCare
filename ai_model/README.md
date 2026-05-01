@@ -6,7 +6,7 @@
 
 ### 모델 다운로드
 ``` gdown https://drive.google.com/uc?id=154JgKpzCPW82qINcVieuPH3fZ2e0P812 -O "models/face_parsing.pth" ```
-
+```
 ai/
 ├── config.py                          # 설정값 + get_face_app() 공유 인스턴스
 ├── register.py                        # 등록: 검증 + 임베딩 추출 통합
@@ -19,3 +19,4 @@ ai/
 │   └── deepfake_efficientnet_b4.pth   # 파인튜닝한 모델
 └── verdict/
     └── judge.py                       # 종합 판정 (percent + status 반환)
+```
