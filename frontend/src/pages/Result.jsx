@@ -1,27 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { getFullReport } from '../api/reportApi';
 import '../styles/Result.css';
 
 function Result() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // 더미데이터 임시용
-  const report = {
-    task_id: id,
-    is_leaked: true,
-    score: 94.5,
-    ip_address: '123.456.78.9',
-    country: 'South Korea',
-    city: 'Seoul',
-    target_url: 'https://example.com/site1',
-    collected_at: '2026-03-25T14:32:00Z',
-    screenshot_path: null,
-  };
+  useEffect(() => {
+    const loadReport = async () => {
+      try {
+        setLoading(true);
+        const res = await getFullReport(id);
+        if (res.ok) {
+          setReport(res.data);
+        } else {
+          setError('보고서를 불러오는데 실패했습니다.');
+        }
+      } catch (err) {
+        console.error('보고서 로딩 실패:', err);
+        setError('서버에 연결할 수 없습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadReport();
+  }, [id]);
+
+  if (loading) return <div className="result-main"><p>불러오는 중...</p></div>;
+  if (error) return <div className="result-main"><p style={{ color: 'red' }}>{error}</p></div>;
+  if (!report) return <div className="result-main"><p>보고서가 없습니다.</p></div>;
 
   const isLeak = report.is_leaked;
-
-  // 날짜 포맷 변환 
   const formattedDate = report.collected_at
     ? new Date(report.collected_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
     : '-';
@@ -72,7 +85,7 @@ function Result() {
                   {isLeak ? '유출 확인' : '미확인'}
                 </span>
               </td></tr>
-              <tr><td>게시 URL</td><td>{report.target_url}</td></tr>
+              <tr><td>게시 URL</td><td>{report.target_url || report.url}</td></tr>
               <tr><td>수집 일시</td><td>{formattedDate}</td></tr>
               <tr><td>서버 IP</td><td>{report.ip_address}</td></tr>
               <tr><td>국가</td><td>{report.country} {report.city}</td></tr>
