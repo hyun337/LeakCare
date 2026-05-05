@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Clock3,
   LoaderCircle,
   CheckCircle2,
   XCircle,
@@ -51,7 +50,7 @@ const JobList = ({ jobs, setJobs }) => {
         job.task_id === taskId
           ? {
               ...job,
-              status: 'pending',
+              status: 'processing',
               errorMessage: '',
               created_at: new Date().toISOString(),
             }
@@ -68,7 +67,6 @@ const JobList = ({ jobs, setJobs }) => {
 
   const getStatusLabel = (status) => {
     const labels = {
-      pending: '대기',
       processing: '분석중',
       completed: '완료',
       failed: '오류',
@@ -78,7 +76,6 @@ const JobList = ({ jobs, setJobs }) => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'pending': return <Clock3 size={14} />;
       case 'processing': return <LoaderCircle size={14} className="spin-icon" />;
       case 'completed': return <CheckCircle2 size={14} />;
       case 'failed': return <XCircle size={14} />;
@@ -94,7 +91,6 @@ const JobList = ({ jobs, setJobs }) => {
   const summaryCards = useMemo(
     () => [
       { label: '전체', value: 'all', className: 'all', count: jobs.length },
-      { label: '대기', value: 'pending', className: 'pending', count: jobs.filter((j) => j.status === 'pending').length },
       { label: '분석중', value: 'processing', className: 'processing', count: jobs.filter((j) => j.status === 'processing').length },
       { label: '완료', value: 'completed', className: 'completed', count: jobs.filter((j) => j.status === 'completed').length },
       { label: '오류', value: 'failed', className: 'failed', count: jobs.filter((j) => j.status === 'failed').length },
