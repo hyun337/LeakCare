@@ -12,6 +12,12 @@ import Result from "../pages/Result";
 import SettingsPage from "../pages/SettingsPage";
 import DeleteRequest from "../pages/DeleteRequest";
 
+// 로그인 안 하면 /login으로 보내는 컴포넌트
+const PrivateRoute = ({ children }) => {
+  const token = localStorage.getItem('accessToken');
+  return token ? children : <Navigate to="/login" replace />;
+};
+
 function AppRouter() {
   const [photos, setPhotos] = useState([]);
   const [jobs, setJobs] = useState([]);
@@ -22,7 +28,7 @@ function AppRouter() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        <Route element={<MainLayout />}>
+        <Route element={<PrivateRoute><MainLayout /></PrivateRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           
