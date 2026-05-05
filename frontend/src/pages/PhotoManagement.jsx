@@ -56,13 +56,7 @@ function PhotoManagement({ photos, setPhotos }) {
       const res = await uploadPhoto(pendingFile.file);
 
       if (!res.ok) {
-        if (res.data?.error_code === 'FACE_NOT_FOUND') {
-          setFaceDetectionError('얼굴을 찾을 수 없습니다. 다시 시도해 주세요.');
-        } else if (res.data?.error_code === 'MULTIPLE_FACES') {
-          setFaceDetectionError('1명만 나온 사진을 올려주세요.');
-        } else {
-          setFaceDetectionError(res.data?.detail || '등록에 실패했습니다.');
-        }
+        setFaceDetectionError(res.data?.detail || '등록에 실패했습니다.');
         return;
       }
 
