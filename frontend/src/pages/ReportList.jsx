@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getReports } from '../api/reportApi';
 import '../styles/ReportList.css';
 
 function ReportList() {
@@ -15,25 +16,9 @@ function ReportList() {
         setLoading(true);
         setError('');
 
-        // TODO: API 완성 시 아래 주석 해제 후 더미데이터 제거
-        // const res = await getReports();
-        // setReports(res.data);
+        const data = await getReports();
+        setReports(Array.isArray(data) ? data : []);
 
-        // (API 연동 전 임시)
-        setReports([
-          {
-            task_id: '1',
-            target_url: 'https://example.com/site1',
-            is_leaked: true,
-            created_at: '2026-03-25T00:00:00Z',
-          },
-          {
-            task_id: '2',
-            target_url: 'https://test-site.org/page',
-            is_leaked: false,
-            created_at: '2026-03-26T00:00:00Z',
-          },
-        ]);
       } catch (err) {
         console.error('보고서 목록 로딩 실패:', err);
         setError('보고서 목록을 불러오는데 실패했습니다. 다시 시도해주세요.');
@@ -108,7 +93,7 @@ function ReportList() {
               filtered.map((report) => (
                 <tr key={report.task_id} onClick={() => navigate(`/reports/${report.task_id}`)}>
                   <td className="report-id">#{report.task_id}</td>
-                  <td className="report-url">{report.target_url}</td>
+                  <td className="report-url">{report.target_url || report.url}</td>
                   <td>
                     <span className={`report-verdict ${report.is_leaked ? 'leak' : 'safe'}`}>
                       {report.is_leaked ? '유출 확인' : '미확인'}
