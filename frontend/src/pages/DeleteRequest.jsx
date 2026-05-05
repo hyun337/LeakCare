@@ -1,6 +1,7 @@
 //삭제 요청서 
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { getDeleteRequest } from "../api/reportApi";
 import "../styles/DeleteRequest.css";
 
 export default function DeleteRequest() {
@@ -20,25 +21,14 @@ export default function DeleteRequest() {
         setLoading(true);
         setError("");
 
-        // TODO: API 완성 시 아래 주석 해제
-        // const res = await getDeleteRequest(reportId);
-        // setReport(res.data.report);
-        // setMailKo(res.data.mail_ko);
-        // setMailEn(res.data.mail_en);
-
-        // 더미데이터 (API 연동 전 임시)
-        setReport({
-          task_id: reportId,
-          target_url: "https://example.com/site1",
-          score: 94.5,
-          collected_at: "2026-03-25T14:32:00Z",
-          ip_address: "123.456.78.9",
-          country: "South Korea",
-          is_leaked: true,
-        });
-        setMailKo(`수신: 운영자 귀중\n\n안녕하세요.\n\n본 메일은 귀하의 플랫폼에 게시된 콘텐츠의 삭제를 요청드리기 위해 작성하였습니다.\n\n해당 콘텐츠는 저의 동의 없이 게시된 영상/이미지로, 개인정보 보호법 및 관련 법률에 위반되는 불법 유출물에 해당합니다.\n\n■ 게시 URL: https://example.com/site1\n■ 탐지 일시: 2026-03-25 14:32 KST\n■ 유사도: 94.5%\n■ 서버 국가: South Korea\n\n즉각적인 삭제 조치와 함께 삭제 완료 시 회신 부탁드립니다.\n이에 응하지 않을 경우 법적 조치를 취할 수 있음을 알려드립니다.\n\n감사합니다.`);
-        setMailEn(`Dear Administrator,\n\nI am writing to request the immediate removal of content posted on your platform without my consent.\n\nThe content in question constitutes illegally distributed material in violation of applicable privacy laws and regulations.\n\n■ URL: https://example.com/site1\n■ Detected at: 2026-03-25 14:32 KST\n■ Similarity score: 94.5%\n■ Server country: South Korea\n\nI kindly request that you remove this content immediately and notify me once the removal has been completed.\nPlease be advised that failure to comply may result in legal action.\n\nThank you.`);
-
+        const res = await getDeleteRequest(reportId);
+        if (res.ok) {
+          setReport(res.data.report);
+          setMailKo(res.data.mail_ko || "");
+          setMailEn(res.data.mail_en || "");
+        } else {
+          setError("삭제 요청서를 불러오는데 실패했습니다. 다시 시도해주세요.");
+        }
       } catch (err) {
         console.error("삭제 요청서 로딩 실패:", err);
         setError("삭제 요청서를 불러오는데 실패했습니다. 다시 시도해주세요.");
@@ -85,6 +75,8 @@ export default function DeleteRequest() {
     );
   }
 
+  if (!report) return <div className="dr-loading"><p>데이터가 없습니다.</p></div>;
+
   return (
     <div className="dr-page">
       <div className="dr-header">
@@ -103,7 +95,7 @@ export default function DeleteRequest() {
           </div>
           <div className="dr-meta-item">
             <span className="dr-meta-key">게시 URL</span>
-            <span className="dr-meta-val dr-meta-val--link">{report.target_url}</span>
+            <span className="dr-meta-val dr-meta-val--link">{report.target_url || report.url}</span>
           </div>
           <div className="dr-meta-item">
             <span className="dr-meta-key">유사도</span>
