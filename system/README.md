@@ -1,3 +1,5 @@
+수정 필요.........
+
 - ### ‼️ 시작
   1. 환경 설정
     pip install playwright insightface onnxruntime-gpu opencv-python reportlab httpx playwright install chromium
