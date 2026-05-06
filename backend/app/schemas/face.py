@@ -30,3 +30,9 @@ class FaceStatusResponse(BaseModel):
                 "max_photos": 5
             }
         }
+        
+        
+class FaceDeleteResponse(BaseModel):
+    success: bool
+    message: str
+    photo_count: int

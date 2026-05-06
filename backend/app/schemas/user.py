@@ -32,3 +32,9 @@ class UserUpdate(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    
+    
+# 비밀번호 변경
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(..., description="현재 비밀번호")
+    new_password: str = Field(..., min_length=8, description="새 비밀번호") 

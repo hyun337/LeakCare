@@ -12,14 +12,6 @@ class DetectionRequest(BaseModel):
         max_length=2083   
     )
     
-    # target_name: 한글/영문/숫자만 허용하여 스크립트 주입(XSS) 차단
-    target_name: str = Field(
-        ..., 
-        min_length=1, 
-        max_length=50, 
-        pattern=r"^[a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ\s\-_]+$",
-        description="분석 대상자 이름 (특수문자 불가)"
-    )
 
 # 탐지 결과 응답 - 분석 현황
 class DetectionResponse(BaseModel):

@@ -3,10 +3,9 @@ from datetime import datetime
 import numpy as np
 import cv2
 import asyncio
-
 from app.core.database import db_instance
 from app.api.v1.dependencies import get_current_user
-from app.schemas.face import FaceRegisterResponse, FaceStatusResponse
+from app.schemas.face import FaceRegisterResponse, FaceStatusResponse, FaceDeleteResponse
 from app.utils.file_validator import validate_file_signature
 
 MAX_PHOTOS = 5
@@ -100,6 +99,55 @@ async def get_face_status(
         "photo_count": photo_count,
         "max_photos": MAX_PHOTOS
     }
+
+
+
+@router.delete("/register/{photo_index}", response_model=FaceDeleteResponse, summary="Delete Face Photo")
+async def delete_face(
+    photo_index: int,
+    current_user: dict = Depends(get_current_user)
+):
+    user_id = str(current_user["_id"])
+
+    # 1. 해당 사진 존재 여부 확인
+    photo = await db_instance.db.face_photos.find_one({
+        "user_id": user_id,
+        "photo_index": photo_index
+    })
+    if not photo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="해당 사진을 찾을 수 없습니다."
+        )
+
+    # 2. 해당 사진 삭제
+    await db_instance.db.face_photos.delete_one({
+        "user_id": user_id,
+        "photo_index": photo_index
+    })
+
+    # 3. 삭제된 번호 이후 사진들 재정렬
+    # ex) 2번 삭제 시 3→2, 4→3, 5→4
+    await db_instance.db.face_photos.update_many(
+        {"user_id": user_id, "photo_index": {"$gt": photo_index}},
+        {"$inc": {"photo_index": -1}}  # photo_index를 1씩 감소
+    )
+
+    # 4. 평균 임베딩 재계산
+    photo_count = await db_instance.db.face_photos.count_documents({"user_id": user_id})
+
+    if photo_count > 0:
+        await _update_avg_embedding(user_id)
+    else:
+        # 사진이 0장이면 프로필 자체를 삭제
+        await db_instance.db.face_profiles.delete_one({"user_id": user_id})
+
+    return {
+        "success": True,
+        "message": f"사진 삭제 완료 ({photo_count}/{MAX_PHOTOS})",
+        "photo_count": photo_count
+    }
+
 
 
 async def _update_avg_embedding(user_id: str):

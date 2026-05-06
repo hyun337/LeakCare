@@ -99,16 +99,19 @@ async def analyze_content(
 ):
     # 1. URL 패턴에 따른 모드 결정 (추가됨)
     detected_mode = get_system_mode(str(request_in.url))
-    
     task_id = str(uuid.uuid4())
     
-    # 2. 저장할 데이터 준비 (모든 객체를 문자열로 강제 변환)
+    # 현재 로그인한 유저의 정보를 추출
+    user_name = str(current_user.get("name", "Unknown")) 
+    user_email = str(current_user.get("email", "No Email"))
+    
+    # 2. 저장할 데이터 준비 (target_name에 유저 이름을 자동 주입)
     new_task = {
         "task_id": task_id,
         "user_id": str(current_user["_id"]), 
-        "user_email": str(current_user["email"]),
+        "user_email": user_email,
         "url": str(request_in.url),
-        "target_name": str(request_in.target_name),
+        "target_name": user_name,  # [자동화] 입력받지 않고 유저 이름으로 설정
         "status": "processing",
         "result": None,
         "created_at": datetime.now(),

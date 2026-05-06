@@ -1,11 +1,14 @@
-from fastapi import  Depends, APIRouter, HTTPException
+from fastapi import  Depends, APIRouter, HTTPException, status
 from app.schemas.user import UserCreate, UserResponse, UserUpdate, UserLogin
 from app.core.database import db_instance
 from app.core.security import get_password_hash
 from app.core.security import verify_password
 from app.core.security import create_access_token
+from app.core.security import pwd_context # 비밀번호 해싱 도구
 from bson import ObjectId # 몽고디비 ID 변환용
 from fastapi.security import OAuth2PasswordRequestForm
+from app.api.v1.dependencies import get_current_user
+from app.schemas.user import PasswordChangeRequest
 
 router = APIRouter()
 
@@ -87,21 +90,41 @@ async def update_user(user_id: str, user_in: UserUpdate):
 
 
 
-@router.delete("/{user_id}", status_code=204)
-async def delete_user(user_id: str):
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def withdraw_membership(
+    current_user: dict = Depends(get_current_user)
+):
+    # 1. 현재 로그인한 사용자의 ID 추출
+    user_id_obj = current_user["_id"]  # ObjectId 형태
+    user_id_str = str(user_id_obj)     # 문자열 형태 (다른 컬렉션 조회용)
 
-    if not ObjectId.is_valid(user_id):
-        raise HTTPException(status_code=400, detail="유효하지 않은 ID 형식입니다.")
+    try:
+        # 2. 본인과 연관된 모든 데이터 연쇄 삭제 (Cascading Delete)
+        # 각 컬렉션에 user_id가 저장되어 있는 모든 문서 삭제
+        
+        # 탐지 기록 삭제
+        await db_instance.db.detection_tasks.delete_many({"user_id": user_id_str})
+        
+        # 얼굴 프로필 및 사진 데이터 삭제
+        await db_instance.db.face_profiles.delete_many({"user_id": user_id_str})
+        await db_instance.db.face_photos.delete_many({"user_id": user_id_str})
+        
+        # 메타데이터 삭제
+        await db_instance.db.metadata.delete_many({"user_id": user_id_str})
 
-    # 1. MongoDB에서 삭제 명령 실행
-    result = await db_instance.db.users.delete_one({"_id": ObjectId(user_id)})
+        # 3. 'users' 컬렉션에서 본인 계정 삭제
+        result = await db_instance.db.users.delete_one({"_id": user_id_obj})
 
-    # 2. 삭제된 데이터가 있는지 확인 (없으면 404)
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="삭제할 사용자를 찾을 수 없습니다.")
+        # 4. 삭제 확인 (이미 로그인된 유저라 실패할 확률은 적지만 검증)
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="사용자 정보를 찾을 수 없습니다.")
 
-    # 3. 삭제 성공 시 보통 본문 없이 204 No Content를 반환합니다.
-    return None
+        # 204 No Content 반환
+        return None
+
+    except Exception as e:
+        print(f"[Withdrawal Error] 본인 탈퇴 처리 중 오류: {str(e)}")
+        raise HTTPException(status_code=500, detail="회원 탈퇴 처리 중 서버 오류가 발생했습니다.")
 
 
 
@@ -127,3 +150,36 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         "user_id": str(user["_id"]), 
         "name": user["name"]
     }
+    
+    
+@router.post("/change-pw", summary="change password")
+async def change_password(
+    body: PasswordChangeRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    # 1. 현재 비밀번호가 맞는지 확인
+    # current_user["hashed_password"]는 DB에 저장된 암호화된 비밀번호
+    if not pwd_context.verify(body.current_password, current_user["hashed_password"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="현재 비밀번호가 일치하지 않습니다."
+        )
+
+    # 2. 새 비밀번호와 이전 비밀번호가 같은지 체크
+    if body.current_password == body.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="새 비밀번호는 기존 비밀번호와 다르게 설정해 주세요."
+        )
+
+    # 3. 새 비밀번호 해싱
+    new_hashed_password = pwd_context.hash(body.new_password)
+
+    # 4. DB 업데이트
+    await db_instance.db.users.update_one(
+        {"_id": current_user["_id"]},
+        {"$set": {"hashed_password": new_hashed_password}}
+    )
+
+    return {"message": "비밀번호가 성공적으로 변경되었습니다."}
+
