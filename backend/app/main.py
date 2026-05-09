@@ -2,20 +2,23 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from app.core.database import connect_to_mongo, close_mongo_connection
 from app.api.v1.api import api_router
 from ai.register import Register 
 from pymongo.errors import PyMongoError
-
-
 import asyncio
 import sys
+import os
 
+UPLOAD_DIR = "static/faces"
+os.makedirs(UPLOAD_DIR, exist_ok=True) # 폴더가 없으면 생성
 
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 app = FastAPI(title="LeakCare")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # CORS 설정 추가
 origins = [
@@ -112,3 +115,11 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"         # 클릭재킹 방지
     response.headers["X-XSS-Protection"] = "1; mode=block" # XSS 기초 방어
     return response
+
+
+# 이미지를 저장할 로컬 폴더 경로 설정 (없으면 자동 생성)
+UPLOAD_DIR = "static/faces"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# /static 경로로 들어오는 요청을 static 폴더와 매핑
+app.mount("/static", StaticFiles(directory="static"), name="static")

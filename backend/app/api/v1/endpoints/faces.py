@@ -3,6 +3,10 @@ from datetime import datetime
 import numpy as np
 import cv2
 import asyncio
+import os
+import uuid
+import shutil
+from fastapi import UploadFile, File
 from app.core.database import db_instance
 from app.api.v1.dependencies import get_current_user
 from app.schemas.face import FaceRegisterResponse, FaceStatusResponse, FaceDeleteResponse
@@ -11,7 +15,7 @@ from app.utils.file_validator import validate_file_signature
 MAX_PHOTOS = 5
 
 router = APIRouter()
-
+UPLOAD_DIR = "static/faces"
 
 @router.post("/register", response_model=FaceRegisterResponse, summary="Register Face Photo")
 async def register_face(
@@ -68,10 +72,22 @@ async def register_face(
 
     # 5. 개별 임베딩 DB 저장
     photo_index = photo_count + 1
+    
+    # 파일 저장 처리
+    file_extension = os.path.splitext(file.filename)[1] # .jpg, .png 등 확장자 추출
+    filename = f"{user_id}_{photo_index}_{uuid.uuid4().hex}{file_extension}"
+    file_path = os.path.join("static/faces", filename)
+    
+    with open(file_path, "wb") as buffer:
+        buffer.write(contents) # 위에서 읽었던 이미지 바이너리 저장
+
+    photo_url = f"/static/faces/{filename}" # DB에 저장할 상대 경로
+    
     await db_instance.db.face_photos.insert_one({
         "user_id": user_id,
         "photo_index": photo_index,
         "embedding": result["embedding"],  # 512차원 list
+        "url": photo_url,  # DB에 URL 필드 추가
         "registered_at": datetime.now()
     })
 
@@ -92,12 +108,21 @@ async def get_face_status(
     current_user: dict = Depends(get_current_user)
 ):
     user_id = str(current_user["_id"])
-    photo_count = await db_instance.db.face_photos.count_documents({"user_id": user_id})
+    
+    # 1. 해당 유저가 등록한 사진 상세 목록 가져오기 (인덱스 순 정렬)
+    cursor = db_instance.db.face_photos.find(
+        {"user_id": user_id},
+        {"_id": 0, "embedding": 0} 
+    ).sort("photo_index", 1)
+    
+    photo_list = await cursor.to_list(length=MAX_PHOTOS)
 
+    # 2. 결과 반환 (상세 목록인 'photos'를 추가)
     return {
         "user_id": user_id,
-        "photo_count": photo_count,
-        "max_photos": MAX_PHOTOS
+        "photo_count": len(photo_list),
+        "max_photos": MAX_PHOTOS,
+        "photos": photo_list  
     }
 
 

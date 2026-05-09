@@ -9,6 +9,7 @@ import random
 import subprocess
 import os
 import sys 
+import httpx
 from datetime import datetime
 from app.api.v1.dependencies import get_current_user
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
@@ -51,43 +52,32 @@ async def run_analysis_and_update(task_id: str, url: str):
             await browser.close()
 
 
-# [외부 엔진 실행을 위한 비동기 래퍼 함수]
-async def run_system_engine(task_id: str, url: str, mode: str):
-    """
-    BackgroundTasks에 의해 실행될 실제 엔진 호출 함수
-    """
-    try:
-        current_file = os.path.abspath(__file__)
-        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file)))))
-        
-        path = current_file
-        for _ in range(5):
-            path = os.path.dirname(path)
-        backend_root = path 
-        
-        script_path = os.path.join(backend_root, "system", "main.py")
-        
-        print(f"--- 경로 디버깅 ---")
-        print(f"계산된 엔진 경로: {script_path}")
-        print(f"파일 존재 여부: {os.path.exists(script_path)}")
-        print(f"------------------")
-        
-        if not os.path.exists(script_path):
-             print(f"에러: {script_path} 경로에 파일이 없습니다. 폴더 구조를 확인하세요.")
-             return
-        
-        # 윈도우 환경에서 가상환경 파이썬을 정확히 사용하도록 sys.executable 권장
-        process = subprocess.Popen([
-            sys.executable, script_path, 
-            url, 
-            "--mode", mode, 
-            "--task_id", task_id
-        ])
-        
-        print(f"시스템 엔진 실행 시작 (PID: {process.pid})")
+# 에러 기록용 공통 함수 (코드 중복 방지 및 FE 대응)
+async def record_failure(task_id: str, error_msg: str):
+    await db_instance.db.detection_tasks.update_one(
+        {"task_id": task_id},
+        {"$set": {
+            "status": "failed",
+            "result": {"error": error_msg}, # FE에서 읽을 수 있도록 구조화
+            "updated_at": datetime.now()
+        }}
+    )
+    print(f" [Task {task_id}] 분석 실패 기록됨: {error_msg}")
+    
 
+# 외부 엔진 실행을 위한 비동기 래퍼 함수
+SYSTEM_SERVER_URL = "https://aloof-absurd-altitude.ngrok-free.dev"
+
+async def run_system_engine(task_id: str, url: str, mode: str, user_id: str):
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # 복잡한 임베딩 데이터 대신 task_id만 전달
+            await client.post(f"{SYSTEM_SERVER_URL}/analyze", json={
+                "task_id": task_id
+            })
     except Exception as e:
-        print(f"엔진 실행 중 오류 발생: {str(e)}")
+        await record_failure(task_id, f"엔진 호출 실패: {str(e)}")
+             
 
 
 # 탐지 요청 엔드포인트
@@ -99,47 +89,62 @@ async def analyze_content(
 ):
     # 1. URL 패턴에 따른 모드 결정 (추가됨)
     detected_mode = get_system_mode(str(request_in.url))
-    task_id = str(uuid.uuid4())
     
-    # 현재 로그인한 유저의 정보를 추출
+    # 2. 고유 Task ID 생성 및 유저 정보 추출
+    task_id = str(uuid.uuid4())
     user_name = str(current_user.get("name", "Unknown")) 
     user_email = str(current_user.get("email", "No Email"))
     
-    # 2. 저장할 데이터 준비 (target_name에 유저 이름을 자동 주입)
+    # 3. 저장할 데이터 준비 (target_name에 유저 이름을 자동 주입)
     new_task = {
         "task_id": task_id,
         "user_id": str(current_user["_id"]), 
         "user_email": user_email,
         "url": str(request_in.url),
-        "target_name": user_name,  # [자동화] 입력받지 않고 유저 이름으로 설정
+        "target_name": user_name,  # 회원 이름 자동 주입
         "status": "processing",
+        "mode": detected_mode,
         "result": None,
         "created_at": datetime.now(),
         "updated_at": datetime.now()
     }
 
     try:
-        # DB 저장 시도
-        insert_result = await db_instance.db.detection_tasks.insert_one(new_task)
-        if not insert_result.acknowledged:
-            raise Exception("DB acknowledge failed")
-            
+        await db_instance.db.detection_tasks.insert_one(new_task)    
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"DB 기록 실패: {str(e)}"
         )
 
-    # 3. 백그라운드에서 실제 '외부 엔진' 실행 (변경됨)
-    background_tasks.add_task(run_system_engine, task_id, str(request_in.url), detected_mode)
+    # 4. 시스템 엔진 실행 명령어 준비
+    # 주의: 프로젝트 루트의 system/main.py 경로 확인 필요
+    script_path = os.path.join(os.getcwd(), "system", "main.py")
     
+    command = [
+        "python", # 윈도우 환경이라 python3 -> python으로 변경
+        script_path, 
+        str(request_in.url), 
+        "--mode", detected_mode,
+        "--task_id", task_id # 엔진이 결과를 업데이트할 수 있도록 task_id 전달
+    ]
+
+    # 5. 비동기로 시스템 실행 
+    background_tasks.add_task(
+        run_system_engine,
+        task_id,
+        str(request_in.url),
+        detected_mode,
+        str(current_user["_id"])
+    )
+
+    # 6. 즉시 응답 반환 (프론트엔드는 이 task_id로 폴링 시작)
     return {
         "task_id": task_id,
         "status": "processing",
-        "mode": detected_mode, # 프론트 확인용
+        "mode": detected_mode,
         "result": None
     }
-
 
 
 # 수집 데이터 저장 요청 엔드포인트
@@ -249,13 +254,26 @@ async def update_task_result(
     task_id: str,
     body: TaskUpdateRequest,
 ):
-    # 1. 업데이트할 데이터 준비 (Pydantic 모델을 딕셔너리로 변환)
+    # 상태값 검증: 오직 completed 또는 failed만 허용
+    allowed_statuses = ["completed", "failed"]
+    if body.status not in allowed_statuses:
+        # 엔진이 잘못된 상태를 보내면 400 에러로 거절
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"허용되지 않는 상태값입니다. ({', '.join(allowed_statuses)} 중 하나여야 함)"
+        )
+    
+    
+    # 1. 업데이트할 데이터 준비
     update_data = {
-        "status": body.status,
-        "metadata": body.metadata.dict(), # 객체는 dict로 변환해서 저장
-        "results": [r.dict() for r in body.results],
-        "screenshot_path": body.screenshot_path,
-        "updated_at": datetime.now() # 업데이트 시간 기록
+        "status": body.status, 
+        "result": {
+            "metadata": body.metadata.dict() if body.metadata else None,
+            "results": [r.dict() for r in body.results] if body.results else [],
+            "screenshot_path": body.screenshot_path,
+            "report_path": body.report_path,
+        },
+        "updated_at": datetime.now()
     }
 
     # 2. MongoDB 업데이트 실행
@@ -270,7 +288,25 @@ async def update_task_result(
         raise HTTPException(status_code=404, detail="해당 태스크를 찾을 수 없습니다.")
 
     return {
-        "message": "업데이트 성공", 
+        "message": f"작업 상태가 {body.status}로 업데이트되었습니다.",
         "task_id": task_id,
-        "modified_count": result.modified_count
+    }
+    
+    
+@router.get("/tasks/{task_id}/details", summary="Get Task Details for System Engine")
+async def get_task_details_for_engine(task_id: str):
+    # 1. 태스크 정보 조회
+    task = await db_instance.db.detection_tasks.find_one({"task_id": task_id})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # 2. 해당 유저의 얼굴 프로필 조회
+    profile = await db_instance.db.face_profiles.find_one({"user_id": task["user_id"]})
+    
+    return {
+        "task_id": task_id,
+        "url": task["url"],
+        "mode": task["mode"],
+        "target_embedding": profile["avg_embedding"] if profile else None,
+        "user_id": task["user_id"]
     }
