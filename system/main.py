@@ -21,16 +21,14 @@ from system.core.extractor import (
 )
 from system.utils.file_path import generate_evidence_path, get_project_root, get_report_path
 
-# AI 폴더에서 직접 import 
+# AI 폴더에서 직접 import (ai_module.py 대체)
 from AI.analyze import Analyze
 
 # BE 서버 주소 — .env로 관리하는 걸 권장
-BE_BASE_URL = os.environ.get("BE_BASE_URL", "http://localhost:8000")
+BE_BASE_URL = os.environ.get("BE_BASE_URL", "https://")
 
 
-# ─────────────────────────────
-# [기능 1] 이미지 다운로드
-# ─────────────────────────────
+# 이미지 다운로드
 async def download_image(url: str):
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
@@ -42,15 +40,9 @@ async def download_image(url: str):
     return None
 
 
-# ─────────────────────────────
-# [기능 2] BE에 결과 PATCH
-# ─────────────────────────────
+# BE에 결과 PATCH
 async def update_task_result(task_id: str, evidence_info: dict, ai_detected_results: list, report_path: str = None):
-    """
-    분석 완료 후 BE에 결과를 PATCH
-    """
     update_url = f"{BE_BASE_URL}/api/v1/detection/tasks/{task_id}"
-
     payload = {
         "status": "completed",
         "metadata": {
@@ -61,9 +53,8 @@ async def update_task_result(task_id: str, evidence_info: dict, ai_detected_resu
         },
         "results": ai_detected_results,
         "screenshot_path": evidence_info["screenshot_path"],
-        "report_path": report_path  # PDF 경로 추가
+        "report_path": report_path
     }
-
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             res = await client.patch(update_url, json=payload)
@@ -76,20 +67,19 @@ async def update_task_result(task_id: str, evidence_info: dict, ai_detected_resu
         print(f"⚠️ [API] 서버 연결 실패: {e}")
 
 
-# ─────────────────────────────
-# [기능 3] BE에 실패 PATCH
-# ─────────────────────────────
+# BE에 실패 PATCH
 async def notify_failed(task_id: str, error_msg: str):
-    """
-    분석 실패 시 BE에 failed 상태를 알립니다.
-    """
     update_url = f"{BE_BASE_URL}/api/v1/detection/tasks/{task_id}"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             await client.patch(update_url, json={
                 "status": "failed",
-                "error": error_msg,
-                "metadata": None,
+                "metadata": {
+                    "ip_address": "0.0.0.0",
+                    "country": "Unknown",
+                    "city": "Unknown",
+                    "collected_at": "1970-01-01T00:00:00"
+                },
                 "results": [],
                 "screenshot_path": None,
                 "report_path": None
@@ -99,34 +89,53 @@ async def notify_failed(task_id: str, error_msg: str):
         print(f"⚠️ [API] 실패 상태 전송도 실패: {e}")
 
 
-# ─────────────────────────────
-# [핵심] 분석 로직 (server.py와 공유)
-# ─────────────────────────────
+# BE에서 task 정보 + 임베딩 조회
+async def fetch_task_details(task_id: str):
+    detail_url = f"{BE_BASE_URL}/api/v1/detection/tasks/{task_id}/details"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        res = await client.get(detail_url)
+        if res.status_code != 200:
+            raise Exception(f"task 정보 조회 실패 (HTTP {res.status_code}): {res.text}")
+        return res.json()
+
+
+# task_id만으로 분석 실행 (server.py에서 호출)
+async def run_analysis_by_task_id(task_id: str):
+    try:
+        details = await fetch_task_details(task_id)
+        url = details.get("url")
+        mode = details.get("mode", "single")
+        embedding = details.get("target_embedding")
+
+        if not embedding:
+            await notify_failed(task_id, "등록된 얼굴 데이터가 없습니다. 먼저 얼굴 사진을 등록해 주세요.")
+            return
+        if not url:
+            await notify_failed(task_id, "분석할 URL 정보가 없습니다.")
+            return
+
+        registered_embeddings = [np.array(embedding)]
+        await run_analysis(task_id, url, mode, registered_embeddings)
+
+    except Exception as e:
+        print(f"❌ run_analysis_by_task_id 오류: {e}")
+        await notify_failed(task_id, str(e))
+
+
+# 핵심 분석 로직
 async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings: list):
-    """
-    실제 분석 파이프라인.
-    - server.py (FastAPI)에서 호출하거나
-    - main() (CLI)에서 직접 호출 모두 가능
-    
-    registered_embeddings: numpy array 리스트 (BE에서 전달받은 임베딩)
-    """
     output_path, filename = generate_evidence_path()
-
-    # AI 분석기 초기화 (한 번만)
     analyzer = Analyze()
-
     bm = BrowserManager()
     page = await bm.start()
 
     try:
-        # 4. 채증 및 메타데이터 확보
         response = await take_screenshot(page, url, output_path)
         ip = await extract_metadata(response)
         country, city = get_location(ip)
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         print(f"✅ 채증 성공! | IP: {ip} | 위치: {country}({city})")
 
-        # 5. 이미지 수집
         raw_images = []
         if mode == "single":
             imgs = await extract_images(page)
@@ -141,7 +150,6 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
                 except Exception:
                     continue
 
-        # 6. AI 분석 수행
         ai_detected_results = []
         print(f"\n🔍 AI 정밀 분석 시작 (대상: {len(raw_images)}건)...")
 
@@ -149,48 +157,50 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
             img_bytes = await download_image(img_url)
             if not img_bytes:
                 continue
-
-            # numpy 배열로 변환
             nparr = np.frombuffer(img_bytes, np.uint8)
             img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
             if img is None:
                 continue
 
-            # AI 폴더의 Analyze 사용 (딥페이크 판별 포함)
             result = analyzer.analyze(registered_embeddings, img)
-
             for r in result.get("results", []):
-                status_icon = "🚨 [탐지!]" if r["percent"] >= 50 else "🔍 [분석]"
-                print(f"   [{idx+1}/{len(raw_images)}] {status_icon} "
-                      f"점수: {r['best_score']:.4f} | "
-                      f"딥페이크: {r['is_deepfake']} | "
-                      f"위험도: {r['status']} | "
-                      f"URL: {img_url[:50]}...")
-
-                # 의심 이상(50%)만 결과에 포함
                 if r["percent"] >= 50:
+                    print(f"   🚨 [탐지!][{idx+1}/{len(raw_images)}]"
+                        f"점수: {r['best_score']:.4f} | "
+                        f"딥페이크: {r['is_deepfake']} | "
+                        f"위험도: {r['status']} | "
+                        f"URL: {img_url[:50]}...")
+
                     ai_detected_results.append({
                         "url": img_url,
-                        "score": r["best_score"],
                         "page_url": source_page,
+                        "score": r["best_score"],
+                        "matched": r["percent"] >= 50,
                         "is_deepfake": r["is_deepfake"],
-                        "risk_level": r["status"],  # 위험 / 의심 / 안전
+                        "risk_level": r["status"],
+                        "thumbnail_local_path": "",
+                        "reason": f"유사도 {r['percent']}% - {'딥페이크 감지됨' if r['is_deepfake'] else '얼굴 일치'}",
                     })
 
-        # 7. PDF 보고서 생성
         evidence_info = {
             "ip": ip,
             "country": country,
             "city": city,
             "timestamp": timestamp,
-            "screenshot_path": output_path
+            "screenshot_path": output_path,
+            "target_url": url,
+            "location": f"{country}({city})"
         }
+
+        SYSTEM_BASE_URL = os.environ.get("SYSTEM_BASE_URL", "hhttps://aloof-absurd-altitude.ngrok-free.dev")
         report_full_path = get_report_path(filename)
         generate_pdf_report(evidence_info, ai_detected_results, report_full_path)
         print(f"📄 PDF 보고서 생성: {report_full_path}")
 
-        # 8. BE에 결과 업데이트
-        await update_task_result(task_id, evidence_info, ai_detected_results, report_full_path)
+        report_filename = os.path.basename(report_full_path)
+        report_url = f"{SYSTEM_BASE_URL}/reports/{report_filename}"
+
+        await update_task_result(task_id, evidence_info, ai_detected_results, report_url)
 
     except Exception as e:
         print(f"❌ 엔진 오류 발생: {e}")
@@ -199,9 +209,7 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
         await bm.stop()
 
 
-# ─────────────────────────────
-# [CLI] 직접 실행 시 (테스트용)
-# ─────────────────────────────
+# CLI 직접 실행 시 (테스트용)
 async def main():
     parser = argparse.ArgumentParser(description="LeakCare 엔진 (CLI 테스트용)")
     parser.add_argument("url", help="채증할 URL 입력")
@@ -211,7 +219,6 @@ async def main():
     parser.add_argument("--video", action="store_true", help="동영상 녹화 활성화")
     args = parser.parse_args()
 
-    # 임베딩 JSON 파일에서 로드
     import json
     if not os.path.exists(args.embedding_path):
         print(f"❌ 임베딩 파일을 찾을 수 없습니다: {args.embedding_path}")
