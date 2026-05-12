@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/SettingsPage.css';
-import { deleteUser } from '../api/userApi'; // 
+import { deleteUser, changePassword } from '../api/userApi';
 
 function SettingsPage() {
   const navigate = useNavigate();
@@ -11,25 +11,48 @@ function SettingsPage() {
   const [emailAlert, setEmailAlert] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [pwMessage, setPwMessage] = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false); // 
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [pwLoading, setPwLoading] = useState(false);
 
-  const handlePasswordChange = (e) => {
+  const handlePasswordChange = async (e) => {
     e.preventDefault();
+    setPwMessage(null);
+
     if (newPassword !== confirmPassword) {
       setPwMessage({ type: 'error', text: '새 비밀번호가 일치하지 않습니다.' });
       return;
     }
-    if (newPassword.length < 6) {
-      setPwMessage({ type: 'error', text: '비밀번호는 6자 이상이어야 합니다.' });
+    if (newPassword.length < 8) {
+      setPwMessage({ type: 'error', text: '비밀번호는 8자 이상이어야 합니다.' });
       return;
     }
-    setPwMessage({ type: 'success', text: '비밀번호가 변경되었습니다.' });
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+
+    try {
+      setPwLoading(true);
+      const res = await changePassword({ currentPassword, newPassword });
+
+      if (!res.ok) {
+        if (typeof res.data?.detail === 'string') {
+          setPwMessage({ type: 'error', text: res.data.detail });
+        } else {
+          setPwMessage({ type: 'error', text: '비밀번호 변경에 실패했습니다.' });
+        }
+        return;
+      }
+
+      setPwMessage({ type: 'success', text: '비밀번호가 성공적으로 변경되었습니다.' });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+
+    } catch (err) {
+      console.error('비밀번호 변경 오류:', err);
+      setPwMessage({ type: 'error', text: '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.' });
+    } finally {
+      setPwLoading(false);
+    }
   };
 
-  // 실제 API 연결 테스트 완료 
   const handleDeleteAccount = async () => {
     const userId = localStorage.getItem('userId');
     setDeleteLoading(true);
@@ -74,7 +97,7 @@ function SettingsPage() {
             <label>새 비밀번호</label>
             <input
               type="password"
-              placeholder="새 비밀번호 입력"
+              placeholder="새 비밀번호 입력 (8자 이상)"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
@@ -93,7 +116,9 @@ function SettingsPage() {
           {pwMessage && (
             <p className={`settings-msg ${pwMessage.type}`}>{pwMessage.text}</p>
           )}
-          <button type="submit" className="settings-btn-primary">변경하기</button>
+          <button type="submit" className="settings-btn-primary" disabled={pwLoading}>
+            {pwLoading ? '변경 중...' : '변경하기'}
+          </button>
         </form>
       </div>
 
