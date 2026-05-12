@@ -1,5 +1,5 @@
 import React from "react";
-import { Trash2, ImageIcon } from 'lucide-react';
+import { Trash2, ImageIcon, UserCircle } from 'lucide-react';
 
 function PhotoList({ photos, onDelete }) {
   if (photos.length === 0) {
@@ -16,13 +16,18 @@ function PhotoList({ photos, onDelete }) {
       {photos.map((photo) => (
         <div key={photo.id} className="photo-card-item">
           <div className="photo-card-image">
-            <img src={photo.url} alt="User Face" />
+            {photo.url
+              ? <img src={photo.url} alt="User Face" />
+              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f0f0', borderRadius: '8px' }}>
+                  <UserCircle size={48} color="#aaa" />
+                </div>
+            }
           </div>
           <div className="photo-card-footer">
             <span className="photo-upload-date">{photo.date}</span>
             <button
               className="photo-delete-action"
-              onClick={() => onDelete(photo.id)}
+              onClick={() => onDelete(photo)}
               title="삭제"
             >
               <Trash2 size={16} />
