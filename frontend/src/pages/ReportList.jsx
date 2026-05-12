@@ -15,10 +15,8 @@ function ReportList() {
       try {
         setLoading(true);
         setError('');
-
-        const data = await getReports();
-        setReports(Array.isArray(data) ? data : []);
-
+        const res = await getReports();
+        setReports(res.ok && Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error('보고서 목록 로딩 실패:', err);
         setError('보고서 목록을 불러오는데 실패했습니다. 다시 시도해주세요.');
@@ -26,7 +24,6 @@ function ReportList() {
         setLoading(false);
       }
     };
-
     loadReports();
   }, []);
 
@@ -34,21 +31,8 @@ function ReportList() {
     ? reports
     : reports.filter(r => filter === '유출 확인' ? r.is_leaked : !r.is_leaked);
 
-  if (loading) {
-    return (
-      <div className="report-list-main">
-        <p>불러오는 중...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="report-list-main">
-        <p style={{ color: 'red' }}>{error}</p>
-      </div>
-    );
-  }
+  if (loading) return <div className="report-list-main"><p>불러오는 중...</p></div>;
+  if (error) return <div className="report-list-main"><p style={{ color: 'red' }}>{error}</p></div>;
 
   return (
     <div className="report-list-main">
@@ -92,8 +76,8 @@ function ReportList() {
             ) : (
               filtered.map((report) => (
                 <tr key={report.task_id} onClick={() => navigate(`/reports/${report.task_id}`)}>
-                  <td className="report-id">#{report.task_id}</td>
-                  <td className="report-url">{report.target_url || report.url}</td>
+                  <td className="report-id">#{report.task_id?.slice(0, 8)}</td>
+                  <td className="report-url">{report.url}</td>
                   <td>
                     <span className={`report-verdict ${report.is_leaked ? 'leak' : 'safe'}`}>
                       {report.is_leaked ? '유출 확인' : '미확인'}
