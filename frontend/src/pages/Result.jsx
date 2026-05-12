@@ -13,7 +13,7 @@ function Result() {
     const fetchReport = async () => {
       try {
         const token = localStorage.getItem('accessToken');
-        const res = await fetch(`${BASE_URL}/reports/${id}`, {
+        const res = await fetch(`${BASE_URL}/detection/full-report/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -38,14 +38,14 @@ function Result() {
   if (loading) return <div>불러오는 중...</div>;
   if (!report) return <div>보고서를 찾을 수 없습니다.</div>;
 
-  const metadata = report.result?.metadata || {};
-  const results = report.result?.results || [];
+  const metadata = report.server_details?.metadata || report.analysis_result?.result?.metadata || {};
+  const results = report.analysis_result?.result?.results || report.result?.results || [];
   const isLeak = results.length > 0;
   const topScore = results.length > 0
     ? Math.round(results[0].score * 100)
     : 0;
 
-  const screenshotPath = report.result?.screenshot_path;
+  const screenshotPath = report.analysis_result?.result?.screenshot_path || report.result?.screenshot_path;
   const serverBase = BASE_URL.replace('/api/v1', '');
 
   const formattedDate = metadata.collected_at
@@ -96,7 +96,7 @@ function Result() {
                   {isLeak ? '유출 확인' : '미확인'}
                 </span>
               </td></tr>
-              <tr><td>게시 URL</td><td>{report.url}</td></tr>
+              <tr><td>게시 URL</td><td>{report.analysis_result?.url || report.url}</td></tr>
               <tr><td>수집 일시</td><td>{formattedDate}</td></tr>
               <tr><td>서버 IP</td><td>{metadata.ip_address || '-'}</td></tr>
               <tr><td>국가</td><td>{metadata.country} {metadata.city}</td></tr>
@@ -110,7 +110,7 @@ function Result() {
         <button
           className="result-btn-pdf"
           onClick={handleDownloadPdf}
-          disabled={!report.report_path}
+          disabled={!report.report_path && !report.analysis_result?.report_path}
         >
           PDF 다운로드
         </button>
