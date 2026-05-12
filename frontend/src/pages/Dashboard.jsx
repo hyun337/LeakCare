@@ -25,13 +25,12 @@ function Dashboard() {
       try {
         const [historyRes, reportsRes] = await Promise.all([
           getDetectionHistory(),
-          getReports().catch(() => []),
+          getReports().catch(() => ({ ok: false, data: [] })),
         ]);
 
         const history = historyRes.ok ? historyRes.data : [];
-        const reports = Array.isArray(reportsRes) ? reportsRes : [];
+        const reports = reportsRes.ok && Array.isArray(reportsRes.data) ? reportsRes.data : [];
 
-        // 카운트 계산
         const total = history.length;
         const inProgress = history.filter(h => 
           h.status === 'pending' || h.status === 'processing'
@@ -40,7 +39,6 @@ function Dashboard() {
 
         setStats({ total, deleteRequest, inProgress });
 
-        // 최근 5건
         const recent = [...history]
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           .slice(0, 5)
