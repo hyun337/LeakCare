@@ -67,3 +67,26 @@ export const deleteUser = async ({ userId }) => {
 
   return { ok: response.ok, status: response.status };
 };
+
+// 비밀번호 변경
+export const changePassword = async ({ currentPassword, newPassword }) => {
+  const token = localStorage.getItem('accessToken');
+
+  const response = await fetch(`${BASE_URL}/users/change-pw`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  });
+
+  const text = await response.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = { detail: text }; }
+  return { ok: response.ok, status: response.status, data };
+};
