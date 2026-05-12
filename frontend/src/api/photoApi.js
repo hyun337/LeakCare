@@ -20,3 +20,34 @@ export const uploadPhoto = async (file) => {
   try { data = JSON.parse(text); } catch { data = { detail: text }; }
   return { ok: response.ok, status: response.status, data };
 };
+
+export const getFaceStatus = async () => {
+  const token = localStorage.getItem('accessToken');
+  const response = await fetch(`${BASE_URL}/faces/status`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+  });
+  const text = await response.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = { detail: text }; }
+  return { ok: response.ok, status: response.status, data };
+};
+
+export const deletePhoto = async (photoIndex) => {
+  const token = localStorage.getItem('accessToken');
+
+  const response = await fetch(`${BASE_URL}/faces/register/${photoIndex}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+  });
+
+  const text = await response.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = { detail: text }; }
+  return { ok: response.ok, status: response.status, data };
+};
