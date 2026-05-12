@@ -24,7 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 
-# 프로젝트 루트를 파이썬 경로에 추가
+# 프로젝트 루트 파이썬 경로에 추가
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from system.main import run_analysis
@@ -62,9 +62,9 @@ async def health():
 @app.post("/analyze")
 async def analyze(req: AnalyzeRequest):
     """
-    BE에서 분석 요청을 받아 백그라운드로 실행합니다.
-    바로 200 응답을 반환하고, 분석은 백그라운드에서 진행됩니다.
-    완료 후 BE의 PATCH /detection/tasks/{task_id} 로 결과를 전송합니다.
+    BE에서 분석 요청을 받아 백그라운드로 실행
+    바로 200 응답을 반환하고, 분석은 백그라운드에서 진행
+    완료 후 BE의 PATCH /detection/tasks/{task_id} 로 결과 전송
     """
     if not req.embedding:
         raise HTTPException(status_code=400, detail="임베딩이 비어있습니다.")
