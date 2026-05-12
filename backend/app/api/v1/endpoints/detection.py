@@ -247,6 +247,25 @@ async def get_full_report(
         "analysis_result": task,
         "server_details": metadata
     }
+   
+   
+@router.get("/tasks/{task_id}/details", summary="Get Task Details for System Engine")
+async def get_task_details_for_engine(task_id: str):
+    # 1. 태스크 정보 조회
+    task = await db_instance.db.detection_tasks.find_one({"task_id": task_id})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # 2. 해당 유저의 얼굴 프로필 조회
+    profile = await db_instance.db.face_profiles.find_one({"user_id": task["user_id"]})
+    
+    return {
+        "task_id": task_id,
+        "url": task["url"],
+        "mode": task["mode"],
+        "target_embedding": profile["avg_embedding"] if profile else None,
+        "user_id": task["user_id"]
+    }   
     
     
 @router.patch("/tasks/{task_id}")
@@ -267,12 +286,10 @@ async def update_task_result(
     # 1. 업데이트할 데이터 준비
     update_data = {
         "status": body.status, 
-        "result": {
-            "metadata": body.metadata.dict() if body.metadata else None,
-            "results": [r.dict() for r in body.results] if body.results else [],
-            "screenshot_path": body.screenshot_path,
-            "report_path": body.report_path,
-        },
+        "metadata": body.metadata.dict() if body.metadata else None,
+        "results": [r.dict() for r in body.results] if body.results else [],
+        "screenshot_path": body.screenshot_path,
+        "report_path": body.report_path,
         "updated_at": datetime.now()
     }
 
@@ -290,23 +307,4 @@ async def update_task_result(
     return {
         "message": f"작업 상태가 {body.status}로 업데이트되었습니다.",
         "task_id": task_id,
-    }
-    
-    
-@router.get("/tasks/{task_id}/details", summary="Get Task Details for System Engine")
-async def get_task_details_for_engine(task_id: str):
-    # 1. 태스크 정보 조회
-    task = await db_instance.db.detection_tasks.find_one({"task_id": task_id})
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    # 2. 해당 유저의 얼굴 프로필 조회
-    profile = await db_instance.db.face_profiles.find_one({"user_id": task["user_id"]})
-    
-    return {
-        "task_id": task_id,
-        "url": task["url"],
-        "mode": task["mode"],
-        "target_embedding": profile["avg_embedding"] if profile else None,
-        "user_id": task["user_id"]
     }

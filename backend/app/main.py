@@ -23,7 +23,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # CORS 설정 추가
 origins = [
     "http://localhost:5173",    # 프론트엔드 개발 서버 주소
+    "http://localhost:5174",
     "http://127.0.0.1:5173",
+    "https://aloof-absurd-altitude.ngrok-free.dev",
 ]
 
 app.add_middleware(

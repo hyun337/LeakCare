@@ -21,23 +21,25 @@ async def get_reports_list(current_user: dict = Depends(get_current_user)):
 
 # 2. task별 상세 조회 & PDF 경로 반환
 @router.get("/{task_id}", response_model=ReportDetailResponse)
-async def get_report_detail(task_id: str, current_user: dict = Depends(get_current_user)):
-    user_id = str(current_user["_id"])
-    
-    report = await db_instance.db.detection_tasks.find_one(
-        {"task_id": task_id, "user_id": user_id}
-    )
-    
-    if not report:
+async def get_report_detail(task_id: str, current_user=Depends(get_current_user)):
+    task = await db_instance.db.detection_tasks.find_one({"task_id": task_id})
+    if not task:
         raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
-        
+    if task["user_id"] != str(current_user["_id"]):
+        raise HTTPException(status_code=403, detail="권한이 없습니다.")
+
+    # result 안에 있는 값들을 최상위로 꺼내서 반환
+    result = task.get("result") or {}
+
     return {
-        "task_id": report["task_id"],
-        "url": report["url"],
-        "status": report["status"],
-        "result": report.get("result"),
-        "pdf_url": f"/api/v1/reports/download/{task_id}", # PDF 다운로드 경로
-        "created_at": report["created_at"]
+        "task_id": task["task_id"],
+        "url": task["url"],
+        "status": task["status"],
+        "created_at": task["created_at"],
+        "metadata": task.get("metadata") or result.get("metadata"),
+        "results": task.get("results") or result.get("results", []),
+        "screenshot_path": task.get("screenshot_path") or result.get("screenshot_path"),
+        "report_path": task.get("report_path") or result.get("report_path"),
     }
 
 # 3. 삭제 요청서 텍스트 조회 

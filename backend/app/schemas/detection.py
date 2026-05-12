@@ -42,7 +42,7 @@ class DetectionMetadata(BaseModel):
     collected_at: str = Field(..., description="수집 일시", example="2026-05-08T13:44:00")
 
 class DetectionResult(BaseModel):
-    image_url: str = Field(..., description="탐지된 이미지/영상 URL")
+    url: str = Field(..., description="탐지된 이미지/영상 URL")
     page_url: str = Field(..., description="데이터가 발견된 페이지 주소")
     score: float = Field(..., description="AI 분석 신뢰도 점수 (0~1)")
     matched: Optional[bool] = None
