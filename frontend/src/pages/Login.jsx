@@ -41,13 +41,13 @@ function Login() {
         return;
       }
 
-      //  실제 토큰 및 유저 정보 저장
       localStorage.setItem('accessToken', result.data.access_token);
       localStorage.setItem('userId', result.data.user_id);
       localStorage.setItem('userEmail', email);
       localStorage.setItem('userName', result.data.name);
 
       console.log('로그인 성공 → 대시보드 이동');
+      window.dispatchEvent(new Event('storage'));
       navigate('/dashboard', { replace: true });
 
     } catch (error) {
@@ -82,16 +82,12 @@ function Login() {
           />
 
           <div style={{ textAlign: 'right', marginBottom: '15px' }}>
-            <Link
-              to="/forgot-password"
-              style={{
-                fontSize: '0.8rem',
-                color: 'gray',
-                textDecoration: 'none',
-              }}
+            <span
+              onClick={() => alert('비밀번호 재설정 기능은 준비 중입니다.')}
+              style={{ fontSize: '0.8rem', color: 'gray', cursor: 'pointer' }}
             >
               비밀번호를 잊으셨나요?
-            </Link>
+            </span>
           </div>
 
           <button type="submit" className="btn-primary" disabled={loading}>
