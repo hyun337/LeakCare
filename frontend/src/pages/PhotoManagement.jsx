@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Upload, X, User, AlertCircle } from "lucide-react";
 import PhotoList from "./PhotoList";
-import { uploadPhoto } from "../api/photoApi";
+import { uploadPhoto, deletePhoto } from "../api/photoApi";
 import "../styles/photo.css";
 
 function PhotoManagement({ photos, setPhotos }) {
@@ -62,6 +62,7 @@ function PhotoManagement({ photos, setPhotos }) {
 
       const newPhoto = {
         id: Date.now(),
+        photo_index: res.data.photo_index,
         url: pendingFile.previewUrl,
         date: new Date().toISOString().split('T')[0],
         name: `등록 사진 ${res.data.photo_count}`,
@@ -77,6 +78,22 @@ function PhotoManagement({ photos, setPhotos }) {
       setErrorMsg('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleDelete = async (photo) => {
+    try {
+      const res = await deletePhoto(photo.photo_index);
+      if (res.ok) {
+        setPhotos(photos.filter(p => p.id !== photo.id));
+        setSuccessMsg('사진이 삭제되었습니다.');
+        setTimeout(() => setSuccessMsg(''), 3000);
+      } else {
+        setErrorMsg(res.data?.detail || '삭제에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('사진 삭제 실패:', err);
+      setErrorMsg('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
     }
   };
 
@@ -168,7 +185,7 @@ function PhotoManagement({ photos, setPhotos }) {
       <section className="registered-list-section">
         <h3 className="section-title">등록된 내 사진</h3>
         <div className="list-content-box">
-          <PhotoList photos={photos} onDelete={(id) => setPhotos(photos.filter(p => p.id !== id))} />
+          <PhotoList photos={photos} onDelete={handleDelete} />
         </div>
       </section>
     </div>
