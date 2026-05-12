@@ -1,15 +1,14 @@
 //삭제 요청서 
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { getDeleteRequest } from "../api/reportApi";
+import { getRemovalText, getFullReport } from "../api/reportApi";
 import "../styles/DeleteRequest.css";
 
 export default function DeleteRequest() {
   const { reportId } = useParams();
 
   const [report, setReport] = useState(null);
-  const [mailKo, setMailKo] = useState("");
-  const [mailEn, setMailEn] = useState("");
+  const [mailText, setMailText] = useState("");
   const [activeTab, setActiveTab] = useState("ko");
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -21,17 +20,21 @@ export default function DeleteRequest() {
         setLoading(true);
         setError("");
 
-        const res = await getDeleteRequest(reportId);
-        if (res.ok) {
-          setReport(res.data.report);
-          setMailKo(res.data.mail_ko || "");
-          setMailEn(res.data.mail_en || "");
-        } else {
-          setError("삭제 요청서를 불러오는데 실패했습니다. 다시 시도해주세요.");
+        const [reportRes, textRes] = await Promise.all([
+          getFullReport(reportId),
+          getRemovalText(reportId),
+        ]);
+
+        if (reportRes.ok) setReport(reportRes.data);
+        if (textRes.ok) setMailText(textRes.data.text || "");
+
+        if (!reportRes.ok && !textRes.ok) {
+          setError("삭제 요청서를 불러오는데 실패했습니다.");
         }
+
       } catch (err) {
         console.error("삭제 요청서 로딩 실패:", err);
-        setError("삭제 요청서를 불러오는데 실패했습니다. 다시 시도해주세요.");
+        setError("삭제 요청서를 불러오는데 실패했습니다.");
       } finally {
         setLoading(false);
       }
@@ -41,8 +44,7 @@ export default function DeleteRequest() {
   }, [reportId]);
 
   const handleCopy = () => {
-    const text = activeTab === "ko" ? mailKo : mailEn;
-    navigator.clipboard.writeText(text).then(() => {
+    navigator.clipboard.writeText(mailText).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -50,12 +52,12 @@ export default function DeleteRequest() {
 
   const handleMailto = () => {
     const subject = encodeURIComponent("불법 유출 콘텐츠 삭제 요청 / Content Removal Request");
-    const body = encodeURIComponent(activeTab === "ko" ? mailKo : mailEn);
+    const body = encodeURIComponent(mailText);
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
-  const formattedDate = report?.collected_at
-    ? new Date(report.collected_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
+  const formattedDate = report?.created_at
+    ? new Date(report.created_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
     : "-";
 
   if (loading) {
@@ -75,8 +77,6 @@ export default function DeleteRequest() {
     );
   }
 
-  if (!report) return <div className="dr-loading"><p>데이터가 없습니다.</p></div>;
-
   return (
     <div className="dr-page">
       <div className="dr-header">
@@ -84,59 +84,32 @@ export default function DeleteRequest() {
         <p className="dr-subtitle">AI가 생성한 삭제 요청 메일입니다. 복사 후 직접 발송해주세요.</p>
       </div>
 
-      <div className="dr-card">
-        <p className="dr-card-label">탐지 요약</p>
-        <div className="dr-meta-row">
-          <div className="dr-meta-item">
-            <span className="dr-meta-key">판정 결과</span>
-            <span className="dr-badge dr-badge--danger">
-              ● {report.is_leaked ? "유출 확인" : "미확인"}
-            </span>
-          </div>
-          <div className="dr-meta-item">
-            <span className="dr-meta-key">게시 URL</span>
-            <span className="dr-meta-val dr-meta-val--link">{report.target_url || report.url}</span>
-          </div>
-          <div className="dr-meta-item">
-            <span className="dr-meta-key">유사도</span>
-            <span className="dr-meta-val">{report.score}%</span>
-          </div>
-          <div className="dr-meta-item">
-            <span className="dr-meta-key">서버 국가</span>
-            <span className="dr-meta-val">{report.country}</span>
-          </div>
-          <div className="dr-meta-item">
-            <span className="dr-meta-key">수집 일시</span>
-            <span className="dr-meta-val">{formattedDate}</span>
+      {report && (
+        <div className="dr-card">
+          <p className="dr-card-label">탐지 요약</p>
+          <div className="dr-meta-row">
+            <div className="dr-meta-item">
+              <span className="dr-meta-key">게시 URL</span>
+              <span className="dr-meta-val dr-meta-val--link">{report.url}</span>
+            </div>
+            <div className="dr-meta-item">
+              <span className="dr-meta-key">상태</span>
+              <span className="dr-meta-val">{report.status}</span>
+            </div>
+            <div className="dr-meta-item">
+              <span className="dr-meta-key">수집 일시</span>
+              <span className="dr-meta-val">{formattedDate}</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="dr-card">
-        <div className="dr-tabs">
-          <button
-            className={`dr-tab ${activeTab === "ko" ? "dr-tab--active" : ""}`}
-            onClick={() => setActiveTab("ko")}
-          >
-            한국어
-          </button>
-          <button
-            className={`dr-tab ${activeTab === "en" ? "dr-tab--active" : ""}`}
-            onClick={() => setActiveTab("en")}
-          >
-            English
-          </button>
-        </div>
-
         <div className="dr-mail-box">
           <textarea
             className="dr-mail-text"
-            value={activeTab === "ko" ? mailKo : mailEn}
-            onChange={(e) =>
-              activeTab === "ko"
-                ? setMailKo(e.target.value)
-                : setMailEn(e.target.value)
-            }
+            value={mailText}
+            onChange={(e) => setMailText(e.target.value)}
             rows={16}
           />
         </div>
