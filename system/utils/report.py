@@ -86,7 +86,7 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     for idx, res in enumerate(ai_results):
         # 1. 이미지 객체 생성 (파일이 존재할 경우)
         face_img = "N/A"
-        if 'local_path' in res and os.path.exists(res['local_path']):
+        if 'thumbnail_local_path' in res and res['thumbnail_local_path'] and os.path.exists(res['thumbnail_local_path']):
             try:
                 # 표 안에 들어가기 적당한 크기로 조절 (예: 50x50)
                 face_img = Image(res['local_path'], width=50, height=50)
