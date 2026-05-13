@@ -71,7 +71,7 @@ async def take_screenshot(page, url, output_path):
     print(f"🌐 {url} 접속 중...")
 
     # 1. 페이지 접속 (타임아웃 여유 있게 설정)
-    response = await page.goto(url, wait_until="networkidle", timeout=60000)
+    response = await page.goto(url, wait_until="domcontentloaded", timeout=60000)
 
     # 2. 정밀 스크롤 (봇 탐지 회피용)
     await auto_scroll(page)
