@@ -7,7 +7,6 @@ import sys
 import cv2
 import numpy as np
 
-# 프로젝트 루트를 파이썬 경로에 추가
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from system.utils.report import generate_pdf_report
@@ -20,18 +19,15 @@ from system.core.extractor import (
     extract_links_with_pagination
 )
 from system.utils.file_path import generate_evidence_path, get_project_root, get_report_path
-
-# AI 폴더에서 직접 import (ai_module.py 대체)
 from AI.analyze import Analyze
 
-# BE 서버 주소 — .env로 관리하는 걸 권장
-BE_BASE_URL = os.environ.get("BE_BASE_URL", "https://")
+BE_BASE_URL = os.environ.get("BE_BASE_URL", "https://d60e-121-67-233-19.ngrok-free.app")
+SYSTEM_BASE_URL = os.environ.get("SYSTEM_BASE_URL", "https://aloof-absurd-altitude.ngrok-free.dev")
 
 
-# 이미지 다운로드
 async def download_image(url: str):
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             res = await client.get(url)
             if res.status_code == 200:
                 return res.content
@@ -40,7 +36,6 @@ async def download_image(url: str):
     return None
 
 
-# BE에 결과 PATCH
 async def update_task_result(task_id: str, evidence_info: dict, ai_detected_results: list, report_path: str = None):
     update_url = f"{BE_BASE_URL}/api/v1/detection/tasks/{task_id}"
     payload = {
@@ -56,7 +51,7 @@ async def update_task_result(task_id: str, evidence_info: dict, ai_detected_resu
         "report_path": report_path
     }
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             res = await client.patch(update_url, json=payload)
             print(f"📨 [API] 응답: {res.status_code} | {res.text}")
             if res.status_code == 200:
@@ -67,11 +62,10 @@ async def update_task_result(task_id: str, evidence_info: dict, ai_detected_resu
         print(f"⚠️ [API] 서버 연결 실패: {e}")
 
 
-# BE에 실패 PATCH
 async def notify_failed(task_id: str, error_msg: str):
     update_url = f"{BE_BASE_URL}/api/v1/detection/tasks/{task_id}"
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             await client.patch(update_url, json={
                 "status": "failed",
                 "metadata": {
@@ -89,17 +83,15 @@ async def notify_failed(task_id: str, error_msg: str):
         print(f"⚠️ [API] 실패 상태 전송도 실패: {e}")
 
 
-# BE에서 task 정보 + 임베딩 조회
 async def fetch_task_details(task_id: str):
     detail_url = f"{BE_BASE_URL}/api/v1/detection/tasks/{task_id}/details"
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(timeout=15.0) as client:
         res = await client.get(detail_url)
         if res.status_code != 200:
             raise Exception(f"task 정보 조회 실패 (HTTP {res.status_code}): {res.text}")
         return res.json()
 
 
-# task_id만으로 분석 실행 (server.py에서 호출)
 async def run_analysis_by_task_id(task_id: str):
     try:
         details = await fetch_task_details(task_id)
@@ -122,12 +114,15 @@ async def run_analysis_by_task_id(task_id: str):
         await notify_failed(task_id, str(e))
 
 
-# 핵심 분석 로직
 async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings: list):
     output_path, filename = generate_evidence_path()
     analyzer = Analyze()
     bm = BrowserManager()
     page = await bm.start()
+
+    # 썸네일 저장 디렉토리 준비
+    thumbnail_dir = os.path.join(get_project_root(), "evidence", "thumbnails")
+    os.makedirs(thumbnail_dir, exist_ok=True)
 
     try:
         response = await take_screenshot(page, url, output_path)
@@ -144,10 +139,11 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
             linked_pages = await extract_links_with_pagination(page, url, 1, 2)
             for link in linked_pages:
                 try:
-                    await page.goto(link, wait_until="domcontentloaded", timeout=10000)
+                    await page.goto(link, wait_until="domcontentloaded", timeout=30000)
                     imgs = await extract_images(page)
                     raw_images.extend([(img, link) for img in imgs])
-                except Exception:
+                except Exception as e:
+                    print(f"⚠️ 링크 접근 실패, 스킵: {link[:50]} | {e}")
                     continue
 
         ai_detected_results = []
@@ -165,11 +161,16 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
             result = analyzer.analyze(registered_embeddings, img)
             for r in result.get("results", []):
                 if r["percent"] >= 50:
-                    print(f"   🚨 [탐지!][{idx+1}/{len(raw_images)}]"
-                        f"점수: {r['best_score']:.4f} | "
-                        f"딥페이크: {r['is_deepfake']} | "
-                        f"위험도: {r['status']} | "
-                        f"URL: {img_url[:50]}...")
+                    # 탐지된 이미지 로컬 저장
+                    thumb_filename = f"{filename.replace('.png', '')}_{idx}.jpg"
+                    thumb_path = os.path.join(thumbnail_dir, thumb_filename)
+                    cv2.imwrite(thumb_path, img)
+
+                    print(f"   🚨 [탐지!][{idx+1}/{len(raw_images)}] "
+                          f"점수: {r['best_score']:.4f} | "
+                          f"딥페이크: {r['is_deepfake']} | "
+                          f"위험도: {r['status']} | "
+                          f"URL: {img_url[:50]}...")
 
                     ai_detected_results.append({
                         "url": img_url,
@@ -178,7 +179,7 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
                         "matched": r["percent"] >= 50,
                         "is_deepfake": r["is_deepfake"],
                         "risk_level": r["status"],
-                        "thumbnail_local_path": "",
+                        "thumbnail_local_path": thumb_path,
                         "reason": f"유사도 {r['percent']}% - {'딥페이크 감지됨' if r['is_deepfake'] else '얼굴 일치'}",
                     })
 
@@ -192,7 +193,6 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
             "location": f"{country}({city})"
         }
 
-        SYSTEM_BASE_URL = os.environ.get("SYSTEM_BASE_URL", "hhttps://aloof-absurd-altitude.ngrok-free.dev")
         report_full_path = get_report_path(filename)
         generate_pdf_report(evidence_info, ai_detected_results, report_full_path)
         print(f"📄 PDF 보고서 생성: {report_full_path}")
@@ -209,7 +209,6 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
         await bm.stop()
 
 
-# CLI 직접 실행 시 (테스트용)
 async def main():
     parser = argparse.ArgumentParser(description="LeakCare 엔진 (CLI 테스트용)")
     parser.add_argument("url", help="채증할 URL 입력")
