@@ -9,18 +9,14 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-# ─────────────────────────────
-# [1] 한글 폰트 등록 (Tofu 현상 방지) 
-# ─────────────────────────────
 try:
-    if platform.system() == "Darwin":  # Mac
+    if platform.system() == "Darwin":
         font_path = "/System/Library/Fonts/Supplemental/AppleGothic.ttf"
-    elif platform.system() == "Windows":  # Windows
+    elif platform.system() == "Windows":
         font_path = "C:/Windows/Fonts/malgun.ttf"
-    else:  # Linux (Ubuntu 등)
+    else:
         font_path = "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
-    
-    # 폰트 파일이 존재하는지 확인 후 등록
+
     if os.path.exists(font_path):
         pdfmetrics.registerFont(TTFont('KoreanFont', font_path))
     else:
@@ -28,16 +24,11 @@ try:
 except Exception as e:
     print(f"⚠️ 폰트 등록 중 오류 발생: {e}")
 
+
 def generate_pdf_report(evidence_data, ai_results, output_path):
-    """
-    evidence_data: {ip, location, screenshot_path, target_url}
-    ai_results: [{url, score, page_url}, ...]
-    """
-    # PDF 문서 생성을 위한 바구니(elements) 준비
     doc = SimpleDocTemplate(output_path, pagesize=A4)
     elements = []
-    
-    # 기본 스타일 시트 가져오기 및 한글 폰트 적용
+
     styles = getSampleStyleSheet()
     for style in styles.byName.values():
         style.fontName = 'KoreanFont'
@@ -46,7 +37,7 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     elements.append(Paragraph("<b>[LeakCare] 디지털 콘텐츠 유출 보고서</b>", styles['Title']))
     elements.append(Spacer(1, 12))
 
-    # 2. 기본 수사 정보 표 (Table)
+    # 2. 기본 수사 정보 표
     info_data = [
         ["항목", "내용"],
         ["대상 URL", evidence_data.get('target_url', 'N/A')],
@@ -54,13 +45,13 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
         ["서버 위치", evidence_data.get('location', 'N/A')],
         ["채증 일시", time.strftime('%Y-%m-%d %H:%M:%S')]
     ]
-    
+
     t = Table(info_data, colWidths=[100, 350])
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, -1), 'KoreanFont'), # 표 내부에도 폰트 적용
+        ('FONTNAME', (0, 0), (-1, -1), 'KoreanFont'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
@@ -68,57 +59,55 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     elements.append(t)
     elements.append(Spacer(1, 20))
 
-    # 3. 채증 스크린샷 첨부
+    # 3. 채증 스크린샷
     elements.append(Paragraph("<b>[증거 1] 현장 채증 스크린샷</b>", styles['Heading2']))
     if os.path.exists(evidence_data.get('screenshot_path', '')):
-        # 이미지 크기 최적화 (A4 너비에 맞춤)
         img = Image(evidence_data['screenshot_path'], width=450, height=250)
         elements.append(img)
     else:
         elements.append(Paragraph("<font color='red'>이미지 파일을 찾을 수 없습니다.</font>", styles['Normal']))
     elements.append(Spacer(1, 20))
 
-    # 4. AI 분석 탐지 결과 표
+    # 4. AI 탐지 결과 표
     elements.append(Paragraph(f"<b>[증거 2] AI 유출 의심 탐지 결과 (총 {len(ai_results)}건)</b>", styles['Heading2']))
-    
+
     analysis_data = [["순번", "탐지된 얼굴", "유사도", "이미지 원본 주소"]]
 
     for idx, res in enumerate(ai_results):
-        # 1. 이미지 객체 생성 (파일이 존재할 경우)
         face_img = "N/A"
-        if 'thumbnail_local_path' in res and res['thumbnail_local_path'] and os.path.exists(res['thumbnail_local_path']):
+        thumb_path = res.get('thumbnail_local_path', '')
+
+        if thumb_path and os.path.exists(thumb_path):
             try:
-                # 표 안에 들어가기 적당한 크기로 조절 (예: 50x50)
-                face_img = Image(res['local_path'], width=50, height=50)
-            except:
+                face_img = Image(thumb_path, width=60, height=60)
+            except Exception as e:
+                print(f"⚠️ 썸네일 삽입 실패: {e}")
                 face_img = "Error"
 
         short_url = res['url'][:50] + "..." if len(res['url']) > 50 else res['url']
-        
-        # ✅ 데이터 행에 face_img 객체 삽입
+
         analysis_data.append([
-            idx + 1, 
-            face_img, 
-            f"{res['score']:.4f}", 
+            idx + 1,
+            face_img,
+            f"{res['score']:.4f}",
             short_url
         ])
 
     if len(ai_results) == 0:
         analysis_data.append(["-", "-", "0.0000", "탐지된 의심 사례가 없습니다."])
 
-    # ✅ 이미지 컬럼을 위해 colWidths 조정 (두 번째 컬럼에 60 할당)
-    at = Table(analysis_data, colWidths=[30, 60, 60, 300])
+    at = Table(analysis_data, colWidths=[30, 70, 60, 290])
     at.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.orange),
         ('FONTNAME', (0, 0), (-1, -1), 'KoreanFont'),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('FONTSIZE', (0, 0), (-1, -1), 8),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'), # 표 내용 중앙 정렬
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightyellow]),
     ]))
     elements.append(at)
 
-    # 최종 PDF 빌드
     try:
         doc.build(elements)
         print(f"✅ PDF 보고서 생성 완료: {output_path}")
