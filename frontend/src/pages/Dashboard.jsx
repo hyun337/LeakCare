@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'; 
 import { Link } from 'react-router-dom';
 import { getDetectionHistory } from '../api/jobApi';
-import { getReports } from '../api/reportApi';
 import '../styles/dashboard.css';
 
 function Dashboard() {
@@ -23,19 +22,14 @@ function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [historyRes, reportsRes] = await Promise.all([
-          getDetectionHistory(),
-          getReports().catch(() => ({ ok: false, data: [] })),
-        ]);
-
-        const history = historyRes.ok ? historyRes.data : [];
-        const reports = reportsRes.ok && Array.isArray(reportsRes.data) ? reportsRes.data : [];
+        const historyRes = await getDetectionHistory();
+        const history = historyRes.ok && Array.isArray(historyRes.data) ? historyRes.data : [];
 
         const total = history.length;
-        const inProgress = history.filter(h => 
+        const inProgress = history.filter(h =>
           h.status === 'pending' || h.status === 'processing'
         ).length;
-        const deleteRequest = reports.length;
+        const deleteRequest = history.filter(h => h.status === 'completed').length;
 
         setStats({ total, deleteRequest, inProgress });
 
