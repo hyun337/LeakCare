@@ -1,4 +1,4 @@
-import BASE_URL from './client';
+import BASE_URL, { COMMON_HEADERS } from './client';
 
 // 작업 목록 조회
 export const getDetectionHistory = async () => {
@@ -7,6 +7,7 @@ export const getDetectionHistory = async () => {
   const response = await fetch(`${BASE_URL}/detection/history`, {
     method: 'GET',
     headers: {
+      ...COMMON_HEADERS, 
       Accept: 'application/json',
       Authorization: `Bearer ${token}`,
     },
