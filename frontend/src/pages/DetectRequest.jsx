@@ -1,14 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ShieldCheck, AlertCircle, ImagePlus } from 'lucide-react';
 import { submitDetectRequest } from '../api/detectApi';
+import { getFaceStatus } from '../api/photoApi';
+import BASE_URL from '../api/client';
 import '../styles/DetectRequest.css';
 
-const DetectRequest = ({ registeredPhotos }) => {
+const DetectRequest = () => {
   const navigate = useNavigate();
   const [url, setUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [registeredPhotos, setRegisteredPhotos] = useState([]);
+  const [photoCount, setPhotoCount] = useState(0);
+  const [photosLoading, setPhotosLoading] = useState(true);
+
+  useEffect(() => {
+    const loadPhotos = async () => {
+      try {
+        const res = await getFaceStatus();
+        if (res.ok) {
+          setPhotoCount(res.data.photo_count || 0);
+          if (res.data.photos) {
+            const serverBase = BASE_URL.replace('/api/v1', '');
+            const loaded = res.data.photos.map((p) => ({
+              id: p.photo_index,
+              photo_index: p.photo_index,
+              url: p.url ? `${serverBase}${p.url}` : null,
+            }));
+            setRegisteredPhotos(loaded);
+          }
+        } else {
+          setPhotoCount(-1); // API 실패 시 화면은 보여줌
+        }
+      } catch (err) {
+        console.error('사진 목록 불러오기 실패:', err);
+        setPhotoCount(-1); // 에러 시 화면은 보여줌
+      } finally {
+        setPhotosLoading(false);
+      }
+    };
+    loadPhotos();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,7 +71,15 @@ const DetectRequest = ({ registeredPhotos }) => {
     }
   };
 
-  if (registeredPhotos.length === 0) {
+  if (photosLoading) {
+    return (
+      <div className="detect-wrapper">
+        <p style={{ textAlign: 'center', padding: '60px', color: '#999' }}>불러오는 중...</p>
+      </div>
+    );
+  }
+
+  if (photoCount === 0) {
     return (
       <div className="detect-wrapper">
         <div className="no-photo-card" style={{ textAlign: 'center', padding: '60px' }}>
@@ -80,16 +121,25 @@ const DetectRequest = ({ registeredPhotos }) => {
           <div className="selected-preview-min" style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '10px', padding: '15px', background: '#f8f9fa', borderRadius: '12px' }}>
             <div style={{ display: 'flex', gap: '5px' }}>
               {registeredPhotos.slice(0, 5).map(photo => (
-                <img
-                  key={photo.id}
-                  src={photo.url}
-                  alt="Thumbnail"
-                  style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #ddd' }}
-                />
+                photo.url ? (
+                  <img
+                    key={photo.id}
+                    src={photo.url}
+                    alt="Thumbnail"
+                    style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #ddd' }}
+                  />
+                ) : (
+                  <div
+                    key={photo.id}
+                    style={{ width: '40px', height: '40px', borderRadius: '6px', border: '1px solid #ddd', background: '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#999' }}
+                  >
+                    {photo.photo_index}
+                  </div>
+                )
               ))}
             </div>
             <div style={{ fontSize: '13px', color: '#5C5CFF', lineHeight: '1.4' }}>
-              현재 등록된 <strong>{registeredPhotos.length}장</strong>의 사진으로 <br/>
+              현재 등록된 <strong>{photoCount > 0 ? photoCount : '?'}장</strong>의 사진으로 <br/>
               실시간 교차 분석을 진행합니다.
             </div>
           </div>
