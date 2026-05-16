@@ -1,4 +1,4 @@
-import BASE_URL from './client';
+import BASE_URL, { COMMON_HEADERS } from './client';
 
 export const uploadPhoto = async (file) => {
   const token = localStorage.getItem('accessToken');
@@ -9,6 +9,7 @@ export const uploadPhoto = async (file) => {
   const response = await fetch(`${BASE_URL}/faces/register`, {
     method: 'POST',
     headers: {
+      ...COMMON_HEADERS, 
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
     },
@@ -25,6 +26,7 @@ export const getFaceStatus = async () => {
   const token = localStorage.getItem('accessToken');
   const response = await fetch(`${BASE_URL}/faces/status`, {
     headers: {
+      ...COMMON_HEADERS,
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
     },
@@ -41,6 +43,7 @@ export const deletePhoto = async (photoIndex) => {
   const response = await fetch(`${BASE_URL}/faces/register/${photoIndex}`, {
     method: 'DELETE',
     headers: {
+      ...COMMON_HEADERS,
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
     },
