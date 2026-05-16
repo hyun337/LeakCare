@@ -33,8 +33,15 @@ app.add_middleware(
     allow_origins=origins,            # 허용할 도메인 목록
     allow_credentials=True,           # 쿠키 허용 여부
     allow_methods=["*"],              # 모든 HTTP 메서드(GET, POST 등) 허용
-    allow_headers=["*"],              # 모든 HTTP 헤더 허용
+    allow_headers=["*", "ngrok-skip-browser-warning"],              # 모든 HTTP 헤더 허용
 )
+
+@app.middleware("http")
+async def add_ngrok_skip_header(request: Request, call_next):
+    response = await call_next(request)
+    # 응답 헤더에 ngrok 경고 스킵 헤더 추가
+    response.headers["ngrok-skip-browser-warning"] = "69420"
+    return response
 
 # 서버 시작 시 실행
 @app.on_event("startup")

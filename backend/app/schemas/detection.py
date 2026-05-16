@@ -62,29 +62,8 @@ class TaskUpdateRequest(BaseModel):
     results: List[DetectionResult] = Field(default=[], description="상세 탐지 리스트")
     screenshot_path: Optional[str] = Field(None, description="분석 스크린샷 저장 경로")
     report_path: Optional[str] = Field(None, description="생성된 최종 PDF 리포트 파일 경로")
+    removal_request_text: Optional[str] = Field(None, description="LLM 생성 삭제 요청 메일 텍스트") 
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "example": {
-                "status": "completed",
-                "metadata": {
-                    "ip_address": "211.234.56.78",
-                    "country": "South Korea",
-                    "city": "Asan",
-                    "collected_at": "2026-05-08T13:44:00"
-                },
-                "results": [
-                    {
-                        "url": "https://example.com/hidden/image.jpg",
-                        "score": 0.98,
-                        "page_url": "https://example.com/board/123"
-                    }
-                ],
-                "screenshot_path": "/static/screenshots/task_abc123.jpg",
-                "report_path": "/static/reports/report_abc123.pdf"
-            }
-        }
-    )
+       
     
     

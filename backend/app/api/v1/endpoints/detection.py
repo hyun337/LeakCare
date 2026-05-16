@@ -290,6 +290,7 @@ async def update_task_result(
         "results": [r.dict() for r in body.results] if body.results else [],
         "screenshot_path": body.screenshot_path,
         "report_path": body.report_path,
+        "removal_request_text": body.removal_request_text, 
         "updated_at": datetime.now()
     }
 
