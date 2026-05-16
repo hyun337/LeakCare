@@ -13,8 +13,9 @@ import {
 import { getDetectionHistory } from '../api/jobApi';
 import '../styles/JobList.css';
 
-const JobList = ({ jobs, setJobs }) => {
+const JobList = () => {
   const navigate = useNavigate();
+  const [jobs, setJobs] = useState([]);
   const [keyword, setKeyword] = useState('');
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -24,7 +25,8 @@ const JobList = ({ jobs, setJobs }) => {
     try {
       const res = await getDetectionHistory();
       if (res.ok) {
-        setJobs(res.data);
+        const data = Array.isArray(res.data) ? res.data : [];
+        setJobs(data);
         setLastUpdated(new Date());
       } else {
         setError('작업 목록을 불러오는데 실패했습니다.');
@@ -183,7 +185,9 @@ const JobList = ({ jobs, setJobs }) => {
               >
                 <div className="col-id">#{job.task_id?.slice(0, 8)}</div>
                 <div className="col-url" title={job.url}>{truncateUrl(job.url)}</div>
-                <div className="col-date">{job.created_at?.slice(0, 16).replace('T', ' ')}</div>
+                <div className="col-date">
+                  {job.created_at ? new Date(job.created_at).toLocaleString('ko-KR') : '-'}
+                </div>
                 <div className="col-status">
                   <span className={`status-badge ${job.status}`}>
                     {getStatusIcon(job.status)}
