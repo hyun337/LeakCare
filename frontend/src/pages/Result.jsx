@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { getFullReport } from '../api/reportApi';
 import BASE_URL from '../api/client';
 import '../styles/Result.css';
 
@@ -12,12 +13,10 @@ function Result() {
   useEffect(() => {
     const fetchReport = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
-        const res = await fetch(`${BASE_URL}/detection/full-report/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        setReport(data);
+        const res = await getFullReport(id);
+        if (res.ok) {
+          setReport(res.data);
+        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -28,8 +27,8 @@ function Result() {
   }, [id]);
 
   const handleDownloadPdf = () => {
-    if (report?.report_path) {
-      window.open(report.report_path, '_blank');
+    if (report?.analysis_result?.report_path || report?.report_path) {
+      window.open(report?.analysis_result?.report_path || report?.report_path, '_blank');
     } else {
       alert('PDF 파일이 아직 준비되지 않았습니다.');
     }
@@ -110,7 +109,7 @@ function Result() {
         <button
           className="result-btn-pdf"
           onClick={handleDownloadPdf}
-          disabled={!report.report_path && !report.analysis_result?.report_path}
+          disabled={!report?.analysis_result?.report_path && !report?.report_path}
         >
           PDF 다운로드
         </button>
