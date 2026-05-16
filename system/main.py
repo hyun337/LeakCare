@@ -21,7 +21,7 @@ from system.core.extractor import (
 from system.utils.file_path import generate_evidence_path, get_project_root, get_report_path
 from AI.analyze import Analyze
 
-BE_BASE_URL = os.environ.get("BE_BASE_URL", "https://d60e-121-67-233-19.ngrok-free.app")
+BE_BASE_URL = os.environ.get("BE_BASE_URL", "https://0cff-2406-5900-1018-ac01-1850-404e-c095-7ca.ngrok-free.app")
 SYSTEM_BASE_URL = os.environ.get("SYSTEM_BASE_URL", "https://aloof-absurd-altitude.ngrok-free.dev")
 
 
