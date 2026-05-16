@@ -3,8 +3,33 @@ import { useNavigate } from 'react-router-dom';
 import { Search, ShieldCheck, AlertCircle, ImagePlus } from 'lucide-react';
 import { submitDetectRequest } from '../api/detectApi';
 import { getFaceStatus } from '../api/photoApi';
-import BASE_URL from '../api/client';
+import BASE_URL, { COMMON_HEADERS } from '../api/client';
 import '../styles/DetectRequest.css';
+
+function PhotoThumb({ url, photoIndex }) {
+  const [imgUrl, setImgUrl] = useState(null);
+
+  useEffect(() => {
+    if (!url) return;
+    fetch(url, { headers: COMMON_HEADERS })
+      .then(res => res.blob())
+      .then(blob => setImgUrl(URL.createObjectURL(blob)));
+  }, [url]);
+
+  if (!url) {
+    return (
+      <div style={{ width: '40px', height: '40px', borderRadius: '6px', border: '1px solid #ddd', background: '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#999' }}>
+        {photoIndex}
+      </div>
+    );
+  }
+
+  return imgUrl ? (
+    <img src={imgUrl} alt="Thumbnail" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #ddd' }} />
+  ) : (
+    <div style={{ width: '40px', height: '40px', borderRadius: '6px', border: '1px solid #ddd', background: '#e0e0e0' }} />
+  );
+}
 
 const DetectRequest = () => {
   const navigate = useNavigate();
@@ -31,11 +56,11 @@ const DetectRequest = () => {
             setRegisteredPhotos(loaded);
           }
         } else {
-          setPhotoCount(-1); // API 실패 시 화면은 보여줌
+          setPhotoCount(-1);
         }
       } catch (err) {
         console.error('사진 목록 불러오기 실패:', err);
-        setPhotoCount(-1); // 에러 시 화면은 보여줌
+        setPhotoCount(-1);
       } finally {
         setPhotosLoading(false);
       }
@@ -121,21 +146,7 @@ const DetectRequest = () => {
           <div className="selected-preview-min" style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '10px', padding: '15px', background: '#f8f9fa', borderRadius: '12px' }}>
             <div style={{ display: 'flex', gap: '5px' }}>
               {registeredPhotos.slice(0, 5).map(photo => (
-                photo.url ? (
-                  <img
-                    key={photo.id}
-                    src={photo.url}
-                    alt="Thumbnail"
-                    style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #ddd' }}
-                  />
-                ) : (
-                  <div
-                    key={photo.id}
-                    style={{ width: '40px', height: '40px', borderRadius: '6px', border: '1px solid #ddd', background: '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#999' }}
-                  >
-                    {photo.photo_index}
-                  </div>
-                )
+                <PhotoThumb key={photo.id} url={photo.url} photoIndex={photo.photo_index} />
               ))}
             </div>
             <div style={{ fontSize: '13px', color: '#5C5CFF', lineHeight: '1.4' }}>
