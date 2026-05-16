@@ -1,10 +1,11 @@
-import BASE_URL from './client';
+import BASE_URL, { COMMON_HEADERS } from './client';
 
 // 회원가입
 export const registerUser = async ({ name, email, password }) => {
   const response = await fetch(`${BASE_URL}/users/register`, {
     method: 'POST',
     headers: {
+      ...COMMON_HEADERS, 
       'Content-Type': 'application/json',
       Accept: 'application/json',
     },
@@ -54,10 +55,10 @@ export const loginUser = async ({ email, password }) => {
 };
 
 // 회원 탈퇴
-export const deleteUser = async ({ userId }) => {
+export const deleteUser = async () => {
   const token = localStorage.getItem('accessToken');
 
-  const response = await fetch(`${BASE_URL}/users/${userId}`, {
+  const response = await fetch(`${BASE_URL}/users/me`, {  // ← /users/${userId} 에서 /users/me 로 수정
     method: 'DELETE',
     headers: {
       Accept: 'application/json',
