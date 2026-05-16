@@ -1,10 +1,11 @@
-import BASE_URL from './client';
+import BASE_URL, { COMMON_HEADERS } from './client';
 
 // 보고서 목록
 export const getReports = async () => {
   const token = localStorage.getItem('accessToken');
-  const response = await fetch(`${BASE_URL}/reports/`, {
+  const response = await fetch(`${BASE_URL}/detection/history`, {
     headers: {
+      ...COMMON_HEADERS, 
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
     },
@@ -18,8 +19,9 @@ export const getReports = async () => {
 // 보고서 상세
 export const getFullReport = async (taskId) => {
   const token = localStorage.getItem('accessToken');
-  const response = await fetch(`${BASE_URL}/reports/${taskId}`, {
+  const response = await fetch(`${BASE_URL}/detection/full-report/${taskId}`, {
     headers: {
+      ...COMMON_HEADERS,
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
     },
@@ -35,6 +37,7 @@ export const getRemovalText = async (taskId) => {
   const token = localStorage.getItem('accessToken');
   const response = await fetch(`${BASE_URL}/reports/${taskId}/removal-text`, {
     headers: {
+      ...COMMON_HEADERS,
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
     },
