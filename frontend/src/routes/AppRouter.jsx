@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "../pages/Login";
 import Register from "../pages/Register";
@@ -12,16 +12,12 @@ import Result from "../pages/Result";
 import SettingsPage from "../pages/SettingsPage";
 import DeleteRequest from "../pages/DeleteRequest";
 
-// 로그인 안 하면 /login으로 보내는 컴포넌트
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('accessToken');
   return token ? children : <Navigate to="/login" replace />;
 };
 
 function AppRouter() {
-  const [photos, setPhotos] = useState([]);
-  const [jobs, setJobs] = useState([]);
-
   return (
     <BrowserRouter>
       <Routes>
@@ -31,24 +27,9 @@ function AppRouter() {
         <Route element={<PrivateRoute><MainLayout /></PrivateRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          
-          {/* 사진 관리*/}
-          <Route 
-            path="/photos" 
-            element={<PhotoManagement photos={photos} setPhotos={setPhotos} />} 
-          />
-          
-          {/* 탐지 요청*/}
-          <Route 
-            path="/detect" 
-            element={<DetectRequest registeredPhotos={photos} jobs={jobs} setJobs={setJobs} />} 
-          />
-          
-          {/* 작업 목록 */}
-          <Route 
-            path="/jobs" 
-            element={<JobList jobs={jobs} setJobs={setJobs} />} 
-          />
+          <Route path="/photos" element={<PhotoManagement />} />
+          <Route path="/detect" element={<DetectRequest />} />
+          <Route path="/jobs" element={<JobList />} />
           <Route path="/reports/:reportId/delete-request" element={<DeleteRequest />} />
           <Route path="/reports" element={<ReportList />} />
           <Route path="/reports/:id" element={<Result />} />
