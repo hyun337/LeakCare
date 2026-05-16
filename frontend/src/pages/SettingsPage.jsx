@@ -54,10 +54,9 @@ function SettingsPage() {
   };
 
   const handleDeleteAccount = async () => {
-    const userId = localStorage.getItem('userId');
     setDeleteLoading(true);
 
-    const result = await deleteUser({ userId });
+    const result = await deleteUser();  // ← userId 제거
     setDeleteLoading(false);
 
     if (result.ok) {
@@ -79,7 +78,6 @@ function SettingsPage() {
         <p className="settings-sub">내 계정 정보 및 알림 관리.</p>
       </div>
 
-      {/* 비밀번호 변경 */}
       <div className="settings-card">
         <div className="settings-card-label">비밀번호 변경</div>
         <form onSubmit={handlePasswordChange} className="settings-form">
@@ -122,7 +120,6 @@ function SettingsPage() {
         </form>
       </div>
 
-      {/* 알림 설정 */}
       <div className="settings-card">
         <div className="settings-card-label">알림 설정</div>
         <div className="settings-toggle-row">
@@ -139,7 +136,6 @@ function SettingsPage() {
         </div>
       </div>
 
-      {/* 회원 탈퇴 */}
       <div className="settings-card settings-card-danger">
         <div className="settings-card-label">회원 탈퇴</div>
         <p className="settings-danger-desc">탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.</p>
@@ -148,7 +144,6 @@ function SettingsPage() {
         </button>
       </div>
 
-      {/* 탈퇴 확인 모달 */}
       {showDeleteModal && (
         <div className="modal-overlay">
           <div className="modal-box">
