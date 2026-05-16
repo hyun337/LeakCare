@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { Upload, X, User, AlertCircle } from "lucide-react";
 import PhotoList from "./PhotoList";
-import { uploadPhoto, deletePhoto } from "../api/photoApi";
+import { uploadPhoto, deletePhoto, getFaceStatus } from "../api/photoApi";
+import BASE_URL from "../api/client"; // serverBase 계산에 사용
 import "../styles/photo.css";
 
-function PhotoManagement({ photos, setPhotos }) {
+function PhotoManagement() {
   const MAX_PHOTOS = 5;
+  const [photos, setPhotos] = useState([]);
   const [pendingFile, setPendingFile] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -14,6 +16,30 @@ function PhotoManagement({ photos, setPhotos }) {
   const [successMsg, setSuccessMsg] = useState('');
 
   const isPhotoLimitReached = photos.length >= MAX_PHOTOS;
+
+  const loadPhotos = async () => {
+    try {
+      const res = await getFaceStatus();
+      if (res.ok && res.data.photos) {
+        const serverBase = BASE_URL.replace('/api/v1', '');
+        const loaded = res.data.photos.map((p) => ({
+          id: p.photo_index,
+          photo_index: p.photo_index,
+          url: p.url ? `${serverBase}${p.url}` : null,
+          date: p.registered_at?.slice(0, 10) || '',
+          name: `등록 사진 ${p.photo_index}`,
+          status: 'Safe',
+        }));
+        setPhotos(loaded);
+      }
+    } catch (err) {
+      console.error('사진 목록 불러오기 실패:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadPhotos();
+  }, []);
 
   const handleFileSelect = (files) => {
     setErrorMsg('');
@@ -60,15 +86,7 @@ function PhotoManagement({ photos, setPhotos }) {
         return;
       }
 
-      const newPhoto = {
-        id: Date.now(),
-        photo_index: res.data.photo_index,
-        url: pendingFile.previewUrl,
-        date: new Date().toISOString().split('T')[0],
-        name: `등록 사진 ${res.data.photo_count}`,
-        status: 'Safe',
-      };
-      setPhotos([...photos, newPhoto]);
+      await loadPhotos();
       setPendingFile(null);
       setSuccessMsg(`얼굴 등록 완료 (${res.data.photo_count}/5)`);
       setTimeout(() => setSuccessMsg(''), 3000);
