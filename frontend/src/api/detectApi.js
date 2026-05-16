@@ -1,4 +1,4 @@
-import BASE_URL from './client';
+import BASE_URL, { COMMON_HEADERS } from './client';
 
 // 탐지 요청 생성
 export const submitDetectRequest = async ({ url }) => {
@@ -7,6 +7,7 @@ export const submitDetectRequest = async ({ url }) => {
   const response = await fetch(`${BASE_URL}/detection/analyze`, {
     method: 'POST',
     headers: {
+      ...COMMON_HEADERS, 
       'Content-Type': 'application/json',
       Accept: 'application/json',
       Authorization: `Bearer ${token}`,
