@@ -56,8 +56,8 @@ export default function DeleteRequest() {
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
-  const formattedDate = report?.created_at
-    ? new Date(report.created_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
+  const formattedDate = report?.analysis_result?.created_at
+    ? new Date(report.analysis_result.created_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })
     : "-";
 
   if (loading) {
@@ -90,11 +90,11 @@ export default function DeleteRequest() {
           <div className="dr-meta-row">
             <div className="dr-meta-item">
               <span className="dr-meta-key">게시 URL</span>
-              <span className="dr-meta-val dr-meta-val--link">{report.url}</span>
+              <span className="dr-meta-val dr-meta-val--link">{report.analysis_result?.url}</span>
             </div>
             <div className="dr-meta-item">
               <span className="dr-meta-key">상태</span>
-              <span className="dr-meta-val">{report.status}</span>
+              <span className="dr-meta-val">{report.analysis_result?.status}</span>
             </div>
             <div className="dr-meta-item">
               <span className="dr-meta-key">수집 일시</span>
