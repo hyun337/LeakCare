@@ -6,6 +6,7 @@ import os
 import sys
 import cv2
 import numpy as np
+from system.utils.llm import generate_removal_text
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -21,8 +22,8 @@ from system.core.extractor import (
 from system.utils.file_path import generate_evidence_path, get_project_root, get_report_path
 from AI.analyze import Analyze
 
-BE_BASE_URL = os.environ.get("BE_BASE_URL", "https://0cff-2406-5900-1018-ac01-1850-404e-c095-7ca.ngrok-free.app")
-SYSTEM_BASE_URL = os.environ.get("SYSTEM_BASE_URL", "https://aloof-absurd-altitude.ngrok-free.dev")
+BE_BASE_URL = os.environ.get("BE_BASE_URL")
+SYSTEM_BASE_URL = os.environ.get("SYSTEM_BASE_URL")
 
 
 async def download_image(url: str):
@@ -36,7 +37,7 @@ async def download_image(url: str):
     return None
 
 
-async def update_task_result(task_id: str, evidence_info: dict, ai_detected_results: list, report_path: str = None):
+async def update_task_result(task_id: str, evidence_info: dict, ai_detected_results: list, report_path: str = None, removal_text: str = None):
     update_url = f"{BE_BASE_URL}/api/v1/detection/tasks/{task_id}"
     payload = {
         "status": "completed",
@@ -48,7 +49,8 @@ async def update_task_result(task_id: str, evidence_info: dict, ai_detected_resu
         },
         "results": ai_detected_results,
         "screenshot_path": evidence_info["screenshot_path"],
-        "report_path": report_path
+        "report_path": report_path,
+        "removal_request_text": removal_text
     }
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -161,7 +163,6 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
             result = analyzer.analyze(registered_embeddings, img)
             for r in result.get("results", []):
                 if r["percent"] >= 50:
-                    # 탐지된 이미지 로컬 저장
                     thumb_filename = f"{filename.replace('.png', '')}_{idx}.jpg"
                     thumb_path = os.path.join(thumbnail_dir, thumb_filename)
                     cv2.imwrite(thumb_path, img)
@@ -182,25 +183,48 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
                         "thumbnail_local_path": thumb_path,
                         "reason": f"유사도 {r['percent']}% - {'딥페이크 감지됨' if r['is_deepfake'] else '얼굴 일치'}",
                     })
+        
+        screenshot_filename = os.path.basename(output_path)
 
+            # 백엔드에 'completed' 상태로 보내되, 빈 결과와 안전 메시지를 전달합니다.
         evidence_info = {
-            "ip": ip,
-            "country": country,
-            "city": city,
+            "ip": ip, 
+            "country": country, 
+            "city": city, 
             "timestamp": timestamp,
-            "screenshot_path": output_path,
-            "target_url": url,
+            "screenshot_path": f"/reports/{screenshot_filename}",  
+            "target_url": url, 
             "location": f"{country}({city})"
         }
+
+        if len(ai_detected_results) == 0:
+            print("\n✅ [엔진] 분석 결과 유출 의심 사례가 발견되지 않았습니다. 작업을 종료합니다.")
+            
+            await update_task_result(
+                task_id=task_id,
+                evidence_info=evidence_info,
+                ai_detected_results=[],
+                report_path=None,               # PDF 생성 안 함
+                removal_text="탐지된 유출 의심 내역이 없습니다. 해당 사이트는 안전합니다." # 고정 텍스트 전달
+            )
+            return
 
         report_full_path = get_report_path(filename)
         generate_pdf_report(evidence_info, ai_detected_results, report_full_path)
         print(f"📄 PDF 보고서 생성: {report_full_path}")
 
+        print("✉️ 삭제 요청서 생성 중...")
+        removal_text = generate_removal_text(url, ai_detected_results, evidence_info)
+
         report_filename = os.path.basename(report_full_path)
         report_url = f"{SYSTEM_BASE_URL}/reports/{report_filename}"
 
-        await update_task_result(task_id, evidence_info, ai_detected_results, report_url)
+        be_results = [
+            {k: v for k, v in r.items() if k != "thumbnail_local_path"}
+            for r in ai_detected_results
+        ]
+        await update_task_result(task_id, evidence_info, be_results, report_url, removal_text)
+
 
     except Exception as e:
         print(f"❌ 엔진 오류 발생: {e}")
