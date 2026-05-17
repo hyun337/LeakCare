@@ -29,7 +29,7 @@ function ReportList() {
     loadReports();
   }, []);
 
-  const isLeak = (report) => report.result?.results?.length > 0;
+const isLeak = (report) => report.results?.length > 0;
 
   const filtered = filter === '전체'
     ? reports
