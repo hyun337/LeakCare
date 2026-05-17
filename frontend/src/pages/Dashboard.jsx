@@ -40,7 +40,9 @@ function Dashboard() {
             id: h.task_id,
             name: h.target_name || h.url,
             date: new Date(h.created_at).toLocaleString('ko-KR'),
-            score: h.result?.percent ?? null,
+            score: h.results?.length > 0
+              ? Math.round(Math.max(...h.results.map(r => r.score)) * 100)
+              : null,
             status: h.status,
           }));
 
