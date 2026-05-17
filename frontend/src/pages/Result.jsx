@@ -1,8 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getFullReport } from '../api/reportApi';
-import BASE_URL from '../api/client';
+import BASE_URL, { COMMON_HEADERS } from '../api/client';
 import '../styles/Result.css';
+
+const SYSTEM_SERVER_URL = 'https://aloof-absurd-altitude.ngrok-free.dev';
+
+function ScreenshotImg({ src }) {
+  const [imgUrl, setImgUrl] = useState(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!src) return;
+    fetch(src, { headers: COMMON_HEADERS })
+      .then(res => {
+        if (!res.ok) { setError(true); return; }
+        return res.blob();
+      })
+      .then(blob => { if (blob) setImgUrl(URL.createObjectURL(blob)); })
+      .catch(() => setError(true));
+  }, [src]);
+
+  if (error || !src) return <span className="result-screenshot-placeholder">탐지 스크린샷 영역</span>;
+  return imgUrl
+    ? <img src={imgUrl} alt="탐지 스크린샷" style={{ width: '100%' }} />
+    : <span className="result-screenshot-placeholder">탐지 스크린샷 영역</span>;
+}
 
 function Result() {
   const { id } = useParams();
@@ -37,15 +60,14 @@ function Result() {
   if (loading) return <div>불러오는 중...</div>;
   if (!report) return <div>보고서를 찾을 수 없습니다.</div>;
 
-  const metadata = report.server_details?.metadata || report.analysis_result?.result?.metadata || {};
-  const results = report.analysis_result?.result?.results || report.result?.results || [];
+  const metadata = report.server_details || report.analysis_result?.metadata || {};
+  const results = report.analysis_result?.results || [];
   const isLeak = results.length > 0;
   const topScore = results.length > 0
     ? Math.round(results[0].score * 100)
     : 0;
 
-  const screenshotPath = report.analysis_result?.result?.screenshot_path || report.result?.screenshot_path;
-  const serverBase = BASE_URL.replace('/api/v1', '');
+  const screenshotPath = report.analysis_result?.screenshot_path;
 
   const formattedDate = metadata.collected_at
     ? new Date(metadata.collected_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
@@ -64,10 +86,7 @@ function Result() {
         <div className="result-card result-card-full">
           <div className="result-card-label">탐지 스크린샷</div>
           <div className="result-screenshot">
-            {screenshotPath
-              ? <img src={`${serverBase}${screenshotPath}`} alt="탐지 스크린샷" style={{ width: '100%' }} />
-              : <span className="result-screenshot-placeholder">탐지 스크린샷 영역</span>
-            }
+            <ScreenshotImg src={screenshotPath ? `${SYSTEM_SERVER_URL}${screenshotPath}` : null} />
           </div>
         </div>
 
