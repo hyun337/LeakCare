@@ -63,8 +63,7 @@ async def get_removal_request_text(task_id: str, current_user: dict = Depends(ge
         return {"text": "현재 AI 분석이 진행 중입니다. 잠시만 기다려 주세요!"}
     
     # 3. 분석은 끝났으나 텍스트가 아직 비어있는 경우 (예외 케이스)
-    result_data = report.get("result")
-    removal_text = result_data.get("removal_request_text") if result_data else None
+    removal_text = report.get("removal_request_text")
     
     if not removal_text:
         return {"text": "리포트가 준비되었으나 생성된 삭제 요청 문구가 없습니다. 시스템 관리자에게 문의해 주세요."}
