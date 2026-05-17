@@ -64,7 +64,7 @@ function Result() {
   const results = report.analysis_result?.results || [];
   const isLeak = results.length > 0;
   const topScore = results.length > 0
-    ? Math.round(results[0].score * 100)
+    ? Math.round(Math.max(...results.map(r => r.score)) * 100)
     : 0;
 
   const screenshotPath = report.analysis_result?.screenshot_path;
