@@ -4,7 +4,11 @@ import sys
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from dotenv import load_dotenv
+
+load_dotenv()
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -20,6 +24,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# evidence 폴더를 /reports 경로로 정적 서빙 (스크린샷 + PDF)
+evidence_dir = os.path.join(get_project_root(), "evidence")
+os.makedirs(evidence_dir, exist_ok=True)
+app.mount("/reports", StaticFiles(directory=evidence_dir), name="reports")
+
 class AnalyzeRequest(BaseModel):
     task_id: str
 
@@ -34,12 +43,3 @@ async def analyze(req: AnalyzeRequest):
     asyncio.create_task(run_analysis_by_task_id(req.task_id))
     print(f"🚀 분석 시작됨 | task_id: {req.task_id}")
     return {"message": "분석이 시작되었습니다.", "task_id": req.task_id}
-
-@app.get("/reports/{filename}")
-async def download_report(filename: str):
-    if ".." in filename or "/" in filename or "\\" in filename:
-        raise HTTPException(status_code=400, detail="잘못된 파일명입니다.")
-    path = os.path.join(get_project_root(), "evidence", filename)
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
-    return FileResponse(path, media_type="application/pdf", filename=filename)
