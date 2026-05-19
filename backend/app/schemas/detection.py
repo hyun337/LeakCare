@@ -25,8 +25,10 @@ class DetectionDetailResponse(BaseModel):
     task_id: str
     url: str  
     target_name: Optional[str] = None
-    status: str = Field(..., pattern="^(processing|completed|failed)$")
+    status: str 
     result: Optional[Dict[str, Any]] = None
+    results: Optional[List[Dict[str, Any]]] = None       
+    removal_request_text: Optional[str] = None            
     created_at: datetime
     updated_at: Optional[datetime] = None
 
