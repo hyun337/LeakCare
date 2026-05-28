@@ -68,10 +68,6 @@ function Result() {
   const analysisResult = report?.analysis_result ?? {};
   const results = analysisResult?.results ?? [];
 
-  // 판정 결과 개선
-  // 1순위: results 배열에 matched:true 항목이 하나라도 있으면 유출
-  // 2순위: results.length > 0 (모든 탐지 결과가 matched 기준 이상)
-  // 3순위: removal_request_text가 "안전합니다" 문구 없으면 유출로 간주 (fallback)
   const hasMatchedResult = results.some((r) => r.matched === true);
   const hasAnyResult = results.length > 0;
   const removalText = analysisResult?.removal_request_text ?? '';
