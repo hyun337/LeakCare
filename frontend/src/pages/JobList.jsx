@@ -11,6 +11,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { getDetectionHistory } from '../api/jobApi';
+import { submitDetectRequest } from '../api/detectApi';
 import '../styles/JobList.css';
 
 const JobList = () => {
@@ -20,10 +21,13 @@ const JobList = () => {
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [error, setError] = useState('');
+  const [retryingIds, setRetryingIds] = useState(new Set());
 
   const fetchJobs = async () => {
+    console.log('fetchJobs 실행'); // ← 추가
     try {
       const res = await getDetectionHistory();
+      console.log('응답:', res.ok, res.data?.length); // ← 추가
       if (res.ok) {
         const data = Array.isArray(res.data) ? res.data : [];
         setJobs(data);
@@ -45,27 +49,42 @@ const JobList = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleRetry = (taskId) => {
+  // 수정: 실제로 API를 재호출하여 재분석 요청
+  const handleRetry = async (job) => {
+    if (retryingIds.has(job.task_id)) return;
+
     setError('');
-    setJobs((prevJobs) =>
-      prevJobs.map((job) =>
-        job.task_id === taskId
-          ? {
-              ...job,
-              status: 'processing',
-              errorMessage: '',
-              created_at: new Date().toISOString(),
-            }
-          : job
-      )
-    );
-    setLastUpdated(new Date());
+    setRetryingIds((prev) => new Set(prev).add(job.task_id));
+
+    try {
+      const res = await submitDetectRequest({ url: job.url });
+      if (res.ok) {
+        // 새 task가 생성됐으므로 목록 갱신
+        await fetchJobs();
+      } else {
+        const msg =
+          typeof res.data?.detail === 'string'
+            ? res.data.detail
+            : '재시도 요청에 실패했습니다.';
+        setError(msg);
+      }
+    } catch (err) {
+      console.error('재시도 실패:', err);
+      setError('재시도 요청 중 오류가 발생했습니다.');
+    } finally {
+      setRetryingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(job.task_id);
+        return next;
+      });
+    }
   };
 
   const handleRefresh = async () => {
+    console.log('새로고침 클릭됨'); // ← 추가
     setError('');
     await fetchJobs();
-  };
+};
 
   const getStatusLabel = (status) => {
     const labels = {
@@ -78,10 +97,14 @@ const JobList = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'processing': return <LoaderCircle size={14} className="spin-icon" />;
-      case 'completed': return <CheckCircle2 size={14} />;
-      case 'failed': return <XCircle size={14} />;
-      default: return null;
+      case 'processing':
+        return <LoaderCircle size={14} className="spin-icon" />;
+      case 'completed':
+        return <CheckCircle2 size={14} />;
+      case 'failed':
+        return <XCircle size={14} />;
+      default:
+        return null;
     }
   };
 
@@ -93,9 +116,24 @@ const JobList = () => {
   const summaryCards = useMemo(
     () => [
       { label: '전체', value: 'all', className: 'all', count: jobs.length },
-      { label: '분석중', value: 'processing', className: 'processing', count: jobs.filter((j) => j.status === 'processing').length },
-      { label: '완료', value: 'completed', className: 'completed', count: jobs.filter((j) => j.status === 'completed').length },
-      { label: '오류', value: 'failed', className: 'failed', count: jobs.filter((j) => j.status === 'failed').length },
+      {
+        label: '분석중',
+        value: 'processing',
+        className: 'processing',
+        count: jobs.filter((j) => j.status === 'processing').length,
+      },
+      {
+        label: '완료',
+        value: 'completed',
+        className: 'completed',
+        count: jobs.filter((j) => j.status === 'completed').length,
+      },
+      {
+        label: '오류',
+        value: 'failed',
+        className: 'failed',
+        count: jobs.filter((j) => j.status === 'failed').length,
+      },
     ],
     [jobs]
   );
@@ -116,13 +154,22 @@ const JobList = () => {
           <p>탐지 엔진이 실시간으로 URL을 분석 중입니다.</p>
         </div>
         <button type="button" className="refresh-btn" onClick={handleRefresh}>
-          <RefreshCw size={16} /> 새로고침
+          <RefreshCw size={16} />
+          새로고침
         </button>
       </header>
 
       {error && (
-        <div style={{ background: '#fff0f0', border: '1px solid #ffcccc', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
-          <p style={{ color: 'red', fontSize: '0.85rem', margin: 0 }}>⚠️ {error}</p>
+        <div
+          style={{
+            background: '#fff0f0',
+            border: '1px solid #ffcccc',
+            borderRadius: '8px',
+            padding: '12px',
+            marginBottom: '16px',
+          }}
+        >
+          <p style={{ color: 'red', fontSize: '0.85rem', margin: 0 }}>{error}</p>
         </div>
       )}
 
@@ -154,7 +201,9 @@ const JobList = () => {
           <div className="dot-blink"></div>
           <div className="polling-meta">
             <span className="polling-text">5초 간격 자동 갱신 중</span>
-            <span className="time-label">마지막 업데이트: {lastUpdated.toLocaleTimeString()}</span>
+            <span className="time-label">
+              마지막 업데이트: {lastUpdated.toLocaleTimeString()}
+            </span>
           </div>
         </div>
       </section>
@@ -184,9 +233,13 @@ const JobList = () => {
                 }}
               >
                 <div className="col-id">#{job.task_id?.slice(0, 8)}</div>
-                <div className="col-url" title={job.url}>{truncateUrl(job.url)}</div>
+                <div className="col-url" title={job.url}>
+                  {truncateUrl(job.url)}
+                </div>
                 <div className="col-date">
-                  {job.created_at ? new Date(job.created_at).toLocaleString('ko-KR') : '-'}
+                  {job.created_at
+                    ? new Date(job.created_at).toLocaleString('ko-KR')
+                    : '-'}
                 </div>
                 <div className="col-status">
                   <span className={`status-badge ${job.status}`}>
@@ -198,16 +251,24 @@ const JobList = () => {
                   {job.status === 'completed' ? (
                     <button
                       className="btn-report"
-                      onClick={(e) => { e.stopPropagation(); navigate(`/reports/${job.task_id}`); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/reports/${job.task_id}`);
+                      }}
                     >
                       <FileText size={14} /> 보고서
                     </button>
                   ) : job.status === 'failed' ? (
                     <button
                       className="btn-retry"
-                      onClick={(e) => { e.stopPropagation(); handleRetry(job.task_id); }}
+                      disabled={retryingIds.has(job.task_id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRetry(job);
+                      }}
                     >
-                      <RotateCcw size={14} /> 재시도
+                      <RotateCcw size={14} />
+                      {retryingIds.has(job.task_id) ? '요청중...' : '재시도'}
                     </button>
                   ) : (
                     <span className="analyzing-text">분석 중...</span>
