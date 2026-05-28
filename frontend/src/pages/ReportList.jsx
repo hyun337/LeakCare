@@ -17,6 +17,7 @@ function ReportList() {
         setError('');
         const res = await getReports();
         const allData = res.ok && Array.isArray(res.data) ? res.data : [];
+        console.log('history 첫번째 항목:', JSON.stringify(allData[0], null, 2));
         // completed 상태인 것만 보고서로 표시
         setReports(allData.filter(r => r.status === 'completed'));
       } catch (err) {
@@ -29,7 +30,13 @@ function ReportList() {
     loadReports();
   }, []);
 
-const isLeak = (report) => report.results?.length > 0;
+const isLeak = (report) => {
+  if (report.results?.some(r => r.matched === true)) return true;
+  if (report.results?.length > 0) return true;
+  const text = report.removal_request_text ?? '';
+  if (text && !text.includes('안전합니다') && !text.includes('발견되지 않았습니다')) return true;
+  return false;
+};
 
   const filtered = filter === '전체'
     ? reports
@@ -48,7 +55,7 @@ const isLeak = (report) => report.results?.length > 0;
       </div>
 
       <div className="report-filter-bar">
-        {['전체', '유출 확인', '미확인'].map(f => (
+        {['전체', '유출 발생', '유출 미발생'].map(f => (
           <button
             key={f}
             className={`report-filter-btn ${filter === f ? 'active' : ''}`}
@@ -84,7 +91,7 @@ const isLeak = (report) => report.results?.length > 0;
                   <td className="report-url">{report.url}</td>
                   <td>
                     <span className={`report-verdict ${isLeak(report) ? 'leak' : 'safe'}`}>
-                      {isLeak(report) ? '유출 확인' : '미확인'}
+                      {isLeak(report) ? '유출 발생' : '유출 미발생'}
                     </span>
                   </td>
                   <td className="report-date">
