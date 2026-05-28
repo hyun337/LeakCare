@@ -20,5 +20,6 @@ ai/
 ```
 [딥페이크 탐지 가중치 파일(0528)](https://drive.google.com/file/d/14QTj515spv2a16vvqGJczsobuzh_uAri/view?usp=sharing)
 
+[코랩](https://colab.research.google.com/drive/1rBMTB3Zs5xW6z4uSXQbmTeHt0FUN76fp?usp=sharing)
 
 [Face Parsing 가중치 파일](https://drive.google.com/file/d/17aOAnvYOw0mFvihM7krab-VkN3rMHAKQ/view?usp=sharing)
