@@ -30,9 +30,9 @@ function AppRouter() {
           <Route path="/photos" element={<PhotoManagement />} />
           <Route path="/detect" element={<DetectRequest />} />
           <Route path="/jobs" element={<JobList />} />
-          <Route path="/reports/:reportId/delete-request" element={<DeleteRequest />} />
-          <Route path="/reports" element={<ReportList />} />
+          <Route path="/reports/:id/delete-request" element={<DeleteRequest />} />
           <Route path="/reports/:id" element={<Result />} />
+          <Route path="/reports" element={<ReportList />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
 
