@@ -37,6 +37,7 @@ export const loginUser = async ({ email, password }) => {
   const response = await fetch(`${BASE_URL}/users/login`, {
     method: 'POST',
     headers: {
+       ...COMMON_HEADERS,
       Accept: 'application/json',
       'Content-Type': 'application/x-www-form-urlencoded',
     },
@@ -61,6 +62,7 @@ export const deleteUser = async () => {
   const response = await fetch(`${BASE_URL}/users/me`, {  // ← /users/${userId} 에서 /users/me 로 수정
     method: 'DELETE',
     headers: {
+       ...COMMON_HEADERS,
       Accept: 'application/json',
       Authorization: `Bearer ${token}`,
     },
@@ -76,6 +78,7 @@ export const changePassword = async ({ currentPassword, newPassword }) => {
   const response = await fetch(`${BASE_URL}/users/change-pw`, {
     method: 'POST',
     headers: {
+       ...COMMON_HEADERS,
       'Content-Type': 'application/json',
       Accept: 'application/json',
       Authorization: `Bearer ${token}`,
