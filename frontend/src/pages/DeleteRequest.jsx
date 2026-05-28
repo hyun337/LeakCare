@@ -5,7 +5,7 @@ import { getRemovalText, getFullReport } from "../api/reportApi";
 import "../styles/DeleteRequest.css";
 
 export default function DeleteRequest() {
-  const { reportId } = useParams();
+  const { id } = useParams();
 
   const [report, setReport] = useState(null);
   const [mailText, setMailText] = useState("");
@@ -21,8 +21,8 @@ export default function DeleteRequest() {
         setError("");
 
         const [reportRes, textRes] = await Promise.all([
-          getFullReport(reportId),
-          getRemovalText(reportId),
+          getFullReport(id),
+          getRemovalText(id),
         ]);
 
         if (reportRes.ok) setReport(reportRes.data);
@@ -41,7 +41,7 @@ export default function DeleteRequest() {
     };
 
     loadData();
-  }, [reportId]);
+  }, [id]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(mailText).then(() => {
