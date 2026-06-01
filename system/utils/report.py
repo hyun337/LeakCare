@@ -71,7 +71,7 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     # 4. AI 탐지 결과 표
     elements.append(Paragraph(f"<b>[증거 2] AI 유출 의심 탐지 결과 (총 {len(ai_results)}건)</b>", styles['Heading2']))
 
-    analysis_data = [["순번", "탐지된 얼굴", "유사도", "이미지 원본 주소"]]
+    analysis_data = [["순번", "탐지된 얼굴", "유사도", "딥페이크", "이미지 원본 주소"]]
 
     for idx, res in enumerate(ai_results):
         face_img = "N/A"
@@ -90,13 +90,14 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
             idx + 1,
             face_img,
             f"{res['score']:.4f}",
+            "딥페이크" if res.get('is_deepfake') else "일반 유출",
             short_url
         ])
 
     if len(ai_results) == 0:
         analysis_data.append(["-", "-", "0.0000", "탐지된 의심 사례가 없습니다."])
 
-    at = Table(analysis_data, colWidths=[30, 70, 60, 290])
+    at = Table(analysis_data, colWidths=[30, 70, 60, 70, 290])
     at.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.orange),
         ('FONTNAME', (0, 0), (-1, -1), 'KoreanFont'),
