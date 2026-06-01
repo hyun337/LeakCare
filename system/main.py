@@ -7,9 +7,7 @@ import sys
 import cv2
 import numpy as np
 from system.utils.llm import generate_removal_text
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from system.utils.report import generate_pdf_report
 from system.browser.manager import BrowserManager
 from system.core.capture import take_screenshot
@@ -37,7 +35,8 @@ async def download_image(url: str):
     return None
 
 
-async def update_task_result(task_id: str, evidence_info: dict, ai_detected_results: list, report_path: str = None, removal_text: str = None):
+async def update_task_result(task_id: str, evidence_info: dict, ai_detected_results: list, report_path: str = None,
+                             removal_text: str = None):
     update_url = f"{BE_BASE_URL}/api/v1/detection/tasks/{task_id}"
     payload = {
         "status": "completed",
@@ -61,7 +60,7 @@ async def update_task_result(task_id: str, evidence_info: dict, ai_detected_resu
             else:
                 print(f"❌ [API] 업데이트 실패 (HTTP {res.status_code})")
     except Exception as e:
-        print(f"⚠️ [API] 서버 연결 실패: {e}")
+        print(f"⚠ [API] 서버 연결 실패: {e}")
 
 
 async def notify_failed(task_id: str, error_msg: str):
@@ -74,15 +73,16 @@ async def notify_failed(task_id: str, error_msg: str):
                     "ip_address": "0.0.0.0",
                     "country": "Unknown",
                     "city": "Unknown",
-                    "collected_at": "1970-01-01T00:00:00"
+                    "collected_at": "1970-01-01T00:00:00",
+                    "error_message": error_msg
                 },
                 "results": [],
                 "screenshot_path": None,
                 "report_path": None
             })
-            print(f"⚠️ [API] Task {task_id} 실패 상태 전송 완료")
+            print(f"⚠ [API] Task {task_id} 실패 상태 전송 완료")
     except Exception as e:
-        print(f"⚠️ [API] 실패 상태 전송도 실패: {e}")
+        print(f"⚠ [API] 실패 상태 전송도 실패: {e}")
 
 
 async def fetch_task_details(task_id: str):
@@ -96,141 +96,183 @@ async def fetch_task_details(task_id: str):
 
 async def run_analysis_by_task_id(task_id: str):
     try:
-        details = await fetch_task_details(task_id)
-        url = details.get("url")
-        mode = details.get("mode", "single")
-        embedding = details.get("target_embedding")
-
-        if not embedding:
-            await notify_failed(task_id, "등록된 얼굴 데이터가 없습니다. 먼저 얼굴 사진을 등록해 주세요.")
-            return
-        if not url:
-            await notify_failed(task_id, "분석할 URL 정보가 없습니다.")
-            return
-
-        registered_embeddings = [np.array(embedding)]
-        await run_analysis(task_id, url, mode, registered_embeddings)
-
-    except Exception as e:
-        print(f"❌ run_analysis_by_task_id 오류: {e}")
-        await notify_failed(task_id, str(e))
-
-
-async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings: list):
-    output_path, filename = generate_evidence_path()
-    analyzer = Analyze()
-    bm = BrowserManager()
-    page = await bm.start()
-
-    # 썸네일 저장 디렉토리 준비
-    thumbnail_dir = os.path.join(get_project_root(), "evidence", "thumbnails")
-    os.makedirs(thumbnail_dir, exist_ok=True)
-
-    try:
-        response = await take_screenshot(page, url, output_path)
-        ip = await extract_metadata(response)
-        country, city = get_location(ip)
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        print(f"✅ 채증 성공! | IP: {ip} | 위치: {country}({city})")
-
-        raw_images = []
-        if mode == "single":
-            imgs = await extract_images(page)
-            raw_images = [(img, url) for img in imgs]
-        elif mode == "board":
-            linked_pages = await extract_links_with_pagination(page, url, 1, 2)
-            for link in linked_pages:
-                try:
-                    await page.goto(link, wait_until="domcontentloaded", timeout=30000)
-                    imgs = await extract_images(page)
-                    raw_images.extend([(img, link) for img in imgs])
-                except Exception as e:
-                    print(f"⚠️ 링크 접근 실패, 스킵: {link[:50]} | {e}")
-                    continue
-
-        ai_detected_results = []
-        print(f"\n🔍 AI 정밀 분석 시작 (대상: {len(raw_images)}건)...")
-
-        for idx, (img_url, source_page) in enumerate(raw_images):
-            img_bytes = await download_image(img_url)
-            if not img_bytes:
-                continue
-            nparr = np.frombuffer(img_bytes, np.uint8)
-            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            if img is None:
-                continue
-
-            result = analyzer.analyze(registered_embeddings, img)
-            for r in result.get("results", []):
-                if r["percent"] >= 50:
-                    thumb_filename = f"{filename.replace('.png', '')}_{idx}.jpg"
-                    thumb_path = os.path.join(thumbnail_dir, thumb_filename)
-                    cv2.imwrite(thumb_path, img)
-
-                    print(f"   🚨 [탐지!][{idx+1}/{len(raw_images)}] "
-                          f"점수: {r['best_score']:.4f} | "
-                          f"딥페이크: {r['is_deepfake']} | "
-                          f"위험도: {r['status']} | "
-                          f"URL: {img_url[:50]}...")
-
-                    ai_detected_results.append({
-                        "url": img_url,
-                        "page_url": source_page,
-                        "score": r["best_score"],
-                        "matched": r["percent"] >= 50,
-                        "is_deepfake": r["is_deepfake"],
-                        "risk_level": r["status"],
-                        "thumbnail_local_path": thumb_path,
-                        "reason": f"유사도 {r['percent']}% - {'딥페이크 감지됨' if r['is_deepfake'] else '얼굴 일치'}",
-                    })
+        details = await fetch_task_details(task_id) 
+        url = details.get("url") 
+        mode = details.get("mode", "single") 
+        embedding = details.get("target_embedding") 
         
-        screenshot_filename = os.path.basename(output_path)
+        if not embedding: 
+            await notify_failed(task_id, "등록된 얼굴 데이터가 없습니다.") #
+            return
+        if not url: 
+            await notify_failed(task_id, "분석할 URL 정보가 없습니다.") #
+            return
+            
+        registered_embeddings = [np.array(embedding)] #
+        
+        # 💡 [조치] FE가 값을 안 주더라도 board 모드라면 기본 1~3페이지를 탐색하도록 가변 인자 주입
+        if mode == "board":
+            await run_analysis(task_id, url, mode, registered_embeddings, start_page=1, end_page=3)
+        else:
+            await run_analysis(task_id, url, mode, registered_embeddings) #
+            
+    except Exception as e:
+        print(f" run_analysis_by_task_id 오류: {e}") #
+        await notify_failed(task_id, str(e)) #
 
-            # 백엔드에 'completed' 상태로 보내되, 빈 결과와 안전 메시지를 전달합니다.
-        evidence_info = {
+
+# 이미지 하나를 다운로드 + AI 분석하는 단위 함수
+async def process_single_image(idx, img_url, source_page, registered_embeddings, analyzer, filename, thumbnail_dir):
+    img_bytes = await download_image(img_url)
+    if not img_bytes:
+        return []
+
+    nparr = np.frombuffer(img_bytes, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if img is None:
+        return []
+
+    result = analyzer.analyze(registered_embeddings, img)
+    detected = []
+
+    for r in result.get("results", []):
+        if r["percent"] >= 50:
+            thumb_filename = f"{filename.replace('.png', '')}_{idx}.jpg"
+            thumb_path = os.path.join(thumbnail_dir, thumb_filename)
+            cv2.imwrite(thumb_path, img)
+
+            print(f" 🚨 [탐지!][{idx+1}] "
+                  f"점수: {r['best_score']:.4f} | "
+                  f"딥페이크: {r['is_deepfake']} | "
+                  f"위험도: {r['status']} | "
+                  f"URL: {img_url[:50]}...")
+
+            detected.append({
+                "url": img_url,
+                "page_url": source_page,
+                "score": r["best_score"],
+                "matched": r["percent"] >= 50,
+                "is_deepfake": r["is_deepfake"],
+                "risk_level": r["status"],
+                "thumbnail_local_path": thumb_path,
+                "reason": f"유사도 {r['percent']}% - {'딥페이크 감지됨' if r['is_deepfake'] else '얼굴 일치'}",
+            })
+
+    return detected
+
+
+async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings: list, start_page: int = 1, end_page: int = 1):
+    """
+    지정한 URL에 접속하여 채증을 수행하고, 이미지를 추출하여 딥페이크 여부를 정밀 분석하는 핵심 엔진 함수
+    """
+    output_path, filename = generate_evidence_path() 
+    analyzer = Analyze() 
+    bm = BrowserManager() 
+    page = await bm.start() 
+    
+    thumbnail_dir = os.path.join(get_project_root(), "evidence", "thumbnails") 
+    os.makedirs(thumbnail_dir, exist_ok=True) 
+    
+    try:
+        # 1단계: 메인 타겟 페이지 스크린샷 채증 및 네트워크 메타데이터 추출
+        response = await take_screenshot(page, url, output_path) 
+        ip = await extract_metadata(response) 
+        country, city = get_location(ip) 
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%S") 
+        print(f" 채증 성공! | IP: {ip} | 위치: {country}({city})") 
+        
+        raw_images = [] 
+        
+        # 2단계: 분석 모드(단일 페이지 vs 게시판 전체 순회)에 따른 이미지 수집 수립
+        if mode == "single": 
+            imgs = await extract_images(page) 
+            raw_images = [(img, url) for img in imgs] 
+            
+        elif mode == "board": 
+            linked_pages = await extract_links_with_pagination(page, url, start_page, end_page) 
+            
+            for link in linked_pages: 
+                try:
+                    # 대형 커뮤니티의 광고/트래커 무한 대기 방지를 위해 'load' 상태 및 10초 제한 적용
+                    await page.goto(link, wait_until="load", timeout=10000) 
+                    await asyncio.sleep(0.5) # 동적 콘텐츠 로딩 유예 시간 확보
+                    
+                    imgs = await extract_images(page) 
+                    raw_images.extend([(img, link) for img in imgs]) 
+                except Exception as e:
+                    # 특정 게시물 진입 실패(타임아웃 등) 시 예외 처리 후 다음 링크로 연속 진행 보장
+                    print(f" ⚠ 링크 접근 실패, 스킵: {link[:50]}... | 사유: {str(e)[:40]}") 
+                    continue #
+                    
+        print(f"\n AI 정밀 분석 시작 (대상: {len(raw_images)}건)...") 
+        
+        # 3단계: 비동기 세마포어 병렬 연산 체제를 통한 대량 이미지 동시 분석 (최대 5개 분할)
+        semaphore = asyncio.Semaphore(5) 
+        
+        async def limited_process(idx, img_url, source_page):
+            async with semaphore: 
+                return await process_single_image( 
+                    idx, img_url, source_page, 
+                    registered_embeddings, analyzer, filename, thumbnail_dir 
+                )
+                
+        tasks = [
+            limited_process(idx, img_url, source_page) 
+            for idx, (img_url, source_page) in enumerate(raw_images) 
+        ]
+        results_list = await asyncio.gather(*tasks) 
+        
+        ai_detected_results = [item for sublist in results_list for item in sublist] 
+        
+        screenshot_filename = os.path.basename(output_path) 
+        evidence_info = { 
             "ip": ip, 
             "country": country, 
             "city": city, 
-            "timestamp": timestamp,
-            "screenshot_path": f"/reports/{screenshot_filename}",  
+            "timestamp": timestamp, 
+            "screenshot_path": f"/reports/{screenshot_filename}", 
             "target_url": url, 
-            "location": f"{country}({city})"
+            "location": f"{country} ({city})" 
         }
-
-        if len(ai_detected_results) == 0:
-            print("\n✅ [엔진] 분석 결과 유출 의심 사례가 발견되지 않았습니다. 작업을 종료합니다.")
-            
-            await update_task_result(
-                task_id=task_id,
-                evidence_info=evidence_info,
-                ai_detected_results=[],
-                report_path=None,               # PDF 생성 안 함
-                removal_text="탐지된 유출 의심 내역이 없습니다. 해당 사이트는 안전합니다." # 고정 텍스트 전달
+        
+        # 4단계: 탐지 결과 유무에 따른 분기 및 백엔드 결과 전송 처리
+        if len(ai_detected_results) == 0: 
+            print("\n [엔진] 분석 결과 유출 의심 사례가 발견되지 않았습니다. 작업을 종료합니다.") 
+            await update_task_result( 
+                task_id=task_id, 
+                evidence_info=evidence_info, 
+                ai_detected_results=[], 
+                report_path=None, 
+                removal_text="탐지된 유출 의심 내역이 없습니다. 해당 사이트는 안전합니다." 
             )
-            return
-
-        report_full_path = get_report_path(filename)
-        generate_pdf_report(evidence_info, ai_detected_results, report_full_path)
-        print(f"📄 PDF 보고서 생성: {report_full_path}")
-
-        print("✉️ 삭제 요청서 생성 중...")
-        removal_text = generate_removal_text(url, ai_detected_results, evidence_info)
-
-        report_filename = os.path.basename(report_full_path)
-        report_url = f"{SYSTEM_BASE_URL}/reports/{report_filename}"
-
+            return 
+            
+        # 유출 의심 사례 탐지 시 PDF 보고서 자동 빌드 프로세서 작동
+        pdf_evidence_info = {**evidence_info, "screenshot_path": output_path} #
+        report_full_path = get_report_path(filename) #
+        generate_pdf_report(pdf_evidence_info, ai_detected_results, report_full_path) #
+        print(f" PDF 보고서 생성: {report_full_path}") #
+        
+        # Claude 단독 AI 모듈 연동을 통한 법적 삭제 요청 통고서 생성
+        print(" 삭제 요청서 생성 중...") #
+        removal_text = generate_removal_text(url, ai_detected_results, evidence_info) #
+        
+        report_filename = os.path.basename(report_full_path) #
+        report_url = f"{SYSTEM_BASE_URL}/reports/{report_filename}" #
+        
+        # 로컬 경로 유출 방지를 위한 필터링 수행 후 백엔드로 최종 패치 요청 전송
         be_results = [
             {k: v for k, v in r.items() if k != "thumbnail_local_path"}
             for r in ai_detected_results
         ]
-        await update_task_result(task_id, evidence_info, be_results, report_url, removal_text)
-
-
+        await update_task_result(task_id, evidence_info, be_results, report_url, removal_text) #
+        
     except Exception as e:
-        print(f"❌ 엔진 오류 발생: {e}")
-        await notify_failed(task_id, str(e))
+        print(f" 엔진 오류 발생: {e}") #
+        await notify_failed(task_id, str(e)) #
+        
     finally:
-        await bm.stop()
+        await bm.stop() # 시스템 자원 반환 및 브라우저 프로세스 안전 종료
 
 
 async def main():
@@ -251,7 +293,6 @@ async def main():
         data = json.load(f)
 
     registered_embeddings = [np.array(data["avg_embedding"])]
-
     await run_analysis(
         task_id=args.task_id,
         url=args.url,
