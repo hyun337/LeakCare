@@ -37,7 +37,7 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     elements.append(Paragraph("<b>[LeakCare] 디지털 콘텐츠 유출 보고서</b>", styles['Title']))
     elements.append(Spacer(1, 12))
 
-    # 2. 기본 수사 정보 표
+    # 2. 기본 정보 표
     info_data = [
         ["항목", "내용"],
         ["대상 URL", evidence_data.get('target_url', 'N/A')],
