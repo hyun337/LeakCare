@@ -5,7 +5,6 @@ import hashlib
 
 def get_project_root():
     """프로젝트 최상위 폴더(LeakCare/)의 절대 경로를 반환"""
-    # 현재 파일(file_path.py) 위치에서 두 단계 위가 루트입니다.
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def generate_evidence_path():
