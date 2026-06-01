@@ -85,7 +85,7 @@ async def extract_links_with_scroll(page, base_url):
 
     return list(collected_links)
 
-# 핵심 로직!!!
+# 핵심 로직
 async def extract_links_with_pagination(page, base_url, start_page, end_page):
     """
     게시판 페이지를 순회하면서 게시글 링크 수집
