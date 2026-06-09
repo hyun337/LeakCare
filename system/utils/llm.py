@@ -12,7 +12,6 @@ def generate_removal_text(url: str, ai_results: list, evidence_info: dict) -> st
         return _default_template(url, evidence_info)
 
     try:
-        # 클라이언트 초기화
         client = Anthropic(api_key=CLAUDE_API_KEY)
 
         detected_count = len(ai_results)
@@ -20,7 +19,6 @@ def generate_removal_text(url: str, ai_results: list, evidence_info: dict) -> st
         is_deepfake = any(r.get("is_deepfake") for r in ai_results)
         content_type = "딥페이크 합성물" if is_deepfake else "불법 촬영 유출물"
 
-        # [영어 + IP 기반 현지 언어] 동적 타겟팅 프롬프트
         prompt = f"""
 당신은 불법 촬영 유출물 및 딥페이크 피해자를 돕는 글로벌 법률 지원 전문가입니다.
 아래 정보를 바탕으로 콘텐츠 삭제 요청 메일을 작성해주세요.
@@ -50,7 +48,6 @@ def generate_removal_text(url: str, ai_results: list, evidence_info: dict) -> st
 5. 수신자란은 [Site Operator/Administrator], 발신자란은 [Victim]으로 표시해주세요.
 """
 
-        # Claude 3.5 Sonnet 호출
         response = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=4000,
