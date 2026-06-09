@@ -12,7 +12,6 @@ def generate_evidence_path():
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{timestamp}_evidence.png"
 
-    # 루트 폴더 기준 'evidence' 폴더 고정
     evidence_dir = os.path.join(get_project_root(), "evidence")
     
     if not os.path.exists(evidence_dir):
