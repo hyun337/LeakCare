@@ -31,7 +31,7 @@ async def extract_images(page):
         () => {
             const imgs = Array.from(document.querySelectorAll('img'));
             return imgs
-                .map(img => img.src) 
+                .map(img => img.src || img.dataset.src || img.dataset.lazy)
                 .filter(src => src && src.startsWith('http'));
         }
     """)
@@ -44,9 +44,8 @@ async def extract_links_with_scroll(page, base_url):
 
     base_domain = urlparse(base_url).netloc
     
-    # 입력 URL에서 게시판 ID 추출 (예: id=w_entertainer)
     base_query = parse_qs(urlparse(base_url).query)
-    board_id = base_query.get('id', [None])[0]  # w_entertainer
+    board_id = base_query.get('id', [None])[0]  
     
     collected_links = set()
     prev_count = 0
@@ -61,13 +60,10 @@ async def extract_links_with_scroll(page, base_url):
 
         for link in links:
             parsed = urlparse(link)
-            # 조건 1: 같은 도메인
             if parsed.netloc != base_domain:
                 continue
-            # 조건 2: 같은 게시판 ID 포함
             if board_id and f'id={board_id}' not in link:
                 continue
-            # 조건 3: 게시물 URL 패턴 (view 또는 숫자 no= 포함)
             if 'view' in parsed.path or 'no=' in parsed.query:
                 collected_links.add(link)
             elif re.search(r'/[A-Za-z0-9]+/\d+$', parsed.path):
@@ -85,7 +81,6 @@ async def extract_links_with_scroll(page, base_url):
 
     return list(collected_links)
 
-# 핵심 로직
 async def extract_links_with_pagination(page, base_url, start_page, end_page):
     """
     게시판 페이지를 순회하면서 게시글 링크 수집
@@ -95,7 +90,6 @@ async def extract_links_with_pagination(page, base_url, start_page, end_page):
 
     base_domain = urlparse(base_url).netloc
 
-    # 게시판 ID 추출
     base_query = parse_qs(urlparse(base_url).query)
     board_id = base_query.get('id', [None])[0]
 
@@ -103,13 +97,11 @@ async def extract_links_with_pagination(page, base_url, start_page, end_page):
     seen = set()
 
     for p in range(start_page, end_page + 1):
-        # 페이지 URL 생성
         parsed = urlparse(base_url)
         query = parse_qs(parsed.query)
 
-        # po= 방식이면 po 사용, 아니면 page 사용
         if 'po' in query:
-            query['po'] = [str(p - 1)]  # po는 0부터 시작
+            query['po'] = [str(p - 1)]  
         else:
             query['page'] = [str(p)]
 
@@ -135,15 +127,12 @@ async def extract_links_with_pagination(page, base_url, start_page, end_page):
         for link in links:
             parsed_link = urlparse(link)
 
-            # 같은 도메인만
             if parsed_link.netloc.replace('www.', '') != base_domain.replace('www.', ''):
                 continue
 
-            # 같은 게시판만
             if board_id and f'id={board_id}' not in link:
                 continue
             
-            # 게스글 패턴 필터링
             is_post = False
             if 'view' in parsed_link.path or 'no=' in parsed_link.query:
                 is_post = True
