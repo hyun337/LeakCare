@@ -11,7 +11,7 @@ async def auto_scroll(page):
     for i in range(scroll_times):
         distance = random.randint(400, 800)
         await page.mouse.wheel(0, distance)
-        await asyncio.sleep(random.uniform(0.2, 0.5))  
+        await asyncio.sleep(random.uniform(0.2, 0.5)) 
 
         is_bottom = await page.evaluate("""
             () => (window.innerHeight + window.scrollY) >= document.body.scrollHeight
@@ -74,7 +74,6 @@ async def take_screenshot(page, url, output_path):
     await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
     await asyncio.sleep(0.3)
     
-    # 최상단으로 복귀 후 스크린샷 캡처
     await page.evaluate("window.scrollTo(0, 0)")
     await asyncio.sleep(0.2)
     
