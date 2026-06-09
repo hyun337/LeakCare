@@ -102,26 +102,24 @@ async def run_analysis_by_task_id(task_id: str):
         embedding = details.get("target_embedding") 
         
         if not embedding: 
-            await notify_failed(task_id, "등록된 얼굴 데이터가 없습니다.") #
+            await notify_failed(task_id, "등록된 얼굴 데이터가 없습니다.") 
             return
         if not url: 
-            await notify_failed(task_id, "분석할 URL 정보가 없습니다.") #
+            await notify_failed(task_id, "분석할 URL 정보가 없습니다.") 
             return
             
-        registered_embeddings = [np.array(embedding)] #
+        registered_embeddings = [np.array(embedding)] 
         
-        # 💡 [조치] FE가 값을 안 주더라도 board 모드라면 기본 1~3페이지를 탐색하도록 가변 인자 주입
         if mode == "board":
             await run_analysis(task_id, url, mode, registered_embeddings, start_page=1, end_page=3)
         else:
-            await run_analysis(task_id, url, mode, registered_embeddings) #
+            await run_analysis(task_id, url, mode, registered_embeddings) 
             
     except Exception as e:
-        print(f" run_analysis_by_task_id 오류: {e}") #
-        await notify_failed(task_id, str(e)) #
+        print(f" run_analysis_by_task_id 오류: {e}") 
+        await notify_failed(task_id, str(e)) 
 
 
-# 이미지 하나를 다운로드 + AI 분석하는 단위 함수
 async def process_single_image(idx, img_url, source_page, registered_embeddings, analyzer, filename, thumbnail_dir):
     img_bytes = await download_image(img_url)
     if not img_bytes:
@@ -163,7 +161,7 @@ async def process_single_image(idx, img_url, source_page, registered_embeddings,
 
 async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings: list, start_page: int = 1, end_page: int = 1):
     """
-    지정한 URL에 접속하여 채증을 수행하고, 이미지를 추출하여 딥페이크 여부를 정밀 분석하는 핵심 엔진 함수
+    지정한 URL에 접속하여 채증을 수행하고, 이미지를 추출하여 딥페이크 여부를 정밀 분석하는 핵심 엔진 함수입니다.
     """
     output_path, filename = generate_evidence_path() 
     analyzer = Analyze() 
@@ -174,7 +172,6 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
     os.makedirs(thumbnail_dir, exist_ok=True) 
     
     try:
-        # 1단계: 메인 타겟 페이지 스크린샷 채증 및 네트워크 메타데이터 추출
         response = await take_screenshot(page, url, output_path) 
         ip = await extract_metadata(response) 
         country, city = get_location(ip) 
@@ -183,7 +180,6 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
         
         raw_images = [] 
         
-        # 2단계: 분석 모드(단일 페이지 vs 게시판 전체 순회)에 따른 이미지 수집 수립
         if mode == "single": 
             imgs = await extract_images(page) 
             raw_images = [(img, url) for img in imgs] 
@@ -193,20 +189,17 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
             
             for link in linked_pages: 
                 try:
-                    # 대형 커뮤니티의 광고/트래커 무한 대기 방지를 위해 'load' 상태 및 10초 제한 적용
                     await page.goto(link, wait_until="load", timeout=10000) 
-                    await asyncio.sleep(0.5) # 동적 콘텐츠 로딩 유예 시간 확보
+                    await asyncio.sleep(0.5) 
                     
                     imgs = await extract_images(page) 
                     raw_images.extend([(img, link) for img in imgs]) 
                 except Exception as e:
-                    # 특정 게시물 진입 실패(타임아웃 등) 시 예외 처리 후 다음 링크로 연속 진행 보장
                     print(f" ⚠ 링크 접근 실패, 스킵: {link[:50]}... | 사유: {str(e)[:40]}") 
-                    continue #
+                    continue 
                     
         print(f"\n AI 정밀 분석 시작 (대상: {len(raw_images)}건)...") 
         
-        # 3단계: 비동기 세마포어 병렬 연산 체제를 통한 대량 이미지 동시 분석 (최대 5개 분할)
         semaphore = asyncio.Semaphore(5) 
         
         async def limited_process(idx, img_url, source_page):
@@ -235,7 +228,6 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
             "location": f"{country} ({city})" 
         }
         
-        # 4단계: 탐지 결과 유무에 따른 분기 및 백엔드 결과 전송 처리
         if len(ai_detected_results) == 0: 
             print("\n [엔진] 분석 결과 유출 의심 사례가 발견되지 않았습니다. 작업을 종료합니다.") 
             await update_task_result( 
@@ -247,32 +239,29 @@ async def run_analysis(task_id: str, url: str, mode: str, registered_embeddings:
             )
             return 
             
-        # 유출 의심 사례 탐지 시 PDF 보고서 자동 빌드 프로세서 작동
-        pdf_evidence_info = {**evidence_info, "screenshot_path": output_path} #
-        report_full_path = get_report_path(filename) #
-        generate_pdf_report(pdf_evidence_info, ai_detected_results, report_full_path) #
-        print(f" PDF 보고서 생성: {report_full_path}") #
+        pdf_evidence_info = {**evidence_info, "screenshot_path": output_path} 
+        report_full_path = get_report_path(filename) 
+        generate_pdf_report(pdf_evidence_info, ai_detected_results, report_full_path) 
+        print(f" PDF 보고서 생성: {report_full_path}") 
         
-        # Claude 단독 AI 모듈 연동을 통한 법적 삭제 요청 통고서 생성
-        print(" 삭제 요청서 생성 중...") #
-        removal_text = generate_removal_text(url, ai_detected_results, evidence_info) #
+        print(" 삭제 요청서 생성 중...") 
+        removal_text = generate_removal_text(url, ai_detected_results, evidence_info) 
         
-        report_filename = os.path.basename(report_full_path) #
-        report_url = f"{SYSTEM_BASE_URL}/reports/{report_filename}" #
+        report_filename = os.path.basename(report_full_path) 
+        report_url = f"{SYSTEM_BASE_URL}/reports/{report_filename}" 
         
-        # 로컬 경로 유출 방지를 위한 필터링 수행 후 백엔드로 최종 패치 요청 전송
         be_results = [
             {k: v for k, v in r.items() if k != "thumbnail_local_path"}
             for r in ai_detected_results
         ]
-        await update_task_result(task_id, evidence_info, be_results, report_url, removal_text) #
+        await update_task_result(task_id, evidence_info, be_results, report_url, removal_text) 
         
     except Exception as e:
-        print(f" 엔진 오류 발생: {e}") #
-        await notify_failed(task_id, str(e)) #
+        print(f" 엔진 오류 발생: {e}") 
+        await notify_failed(task_id, str(e)) 
         
     finally:
-        await bm.stop() # 시스템 자원 반환 및 브라우저 프로세스 안전 종료
+        await bm.stop() 
 
 
 async def main():
