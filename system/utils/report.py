@@ -33,11 +33,9 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     for style in styles.byName.values():
         style.fontName = 'KoreanFont'
 
-    # 1. 보고서 제목
     elements.append(Paragraph("<b>[LeakCare] 디지털 콘텐츠 유출 보고서</b>", styles['Title']))
     elements.append(Spacer(1, 12))
 
-    # 2. 기본 정보 표
     info_data = [
         ["항목", "내용"],
         ["대상 URL", evidence_data.get('target_url', 'N/A')],
@@ -59,7 +57,6 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
     elements.append(t)
     elements.append(Spacer(1, 20))
 
-    # 3. 채증 스크린샷
     elements.append(Paragraph("<b>[증거 1] 현장 채증 스크린샷</b>", styles['Heading2']))
     if os.path.exists(evidence_data.get('screenshot_path', '')):
         img = Image(evidence_data['screenshot_path'], width=450, height=250)
@@ -68,7 +65,6 @@ def generate_pdf_report(evidence_data, ai_results, output_path):
         elements.append(Paragraph("<font color='red'>이미지 파일을 찾을 수 없습니다.</font>", styles['Normal']))
     elements.append(Spacer(1, 20))
 
-    # 4. AI 탐지 결과 표
     elements.append(Paragraph(f"<b>[증거 2] AI 유출 의심 탐지 결과 (총 {len(ai_results)}건)</b>", styles['Heading2']))
 
     analysis_data = [["순번", "탐지된 얼굴", "유사도", "딥페이크", "이미지 원본 주소"]]
