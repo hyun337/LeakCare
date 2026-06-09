@@ -24,7 +24,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# evidence 폴더를 /reports 경로로 정적 서빙 (스크린샷 + PDF)
 evidence_dir = os.path.join(get_project_root(), "evidence")
 os.makedirs(evidence_dir, exist_ok=True)
 app.mount("/reports", StaticFiles(directory=evidence_dir), name="reports")
