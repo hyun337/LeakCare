@@ -2,119 +2,141 @@
 AI 기반 딥페이크 및 불법 유출물 통합 탐지·대응 플랫폼
 
 ### 🛠 Tech Stack
-- AI: PyTorch, Dlib, Kaggle Dataset
-- Backend: FastAPI, MongoDB, Playwright
-- Frontend: React, Tailwind CSS
+- AI: PyTorch, insightface (ArcFace buffalo_l), BiSeNet, ConvNeXt-Tiny
+- Backend: FastAPI, MongoDB Atlas, JWT
+- Frontend: React 19, Vite 7
+- System: Playwright, httpx, ReportLab, Anthropic API (Claude)
 - Tools: GitHub, Discord, Swagger
 
 ### 👥 Team Members
 - 김수진: AI Specialist
      - 핵심 역할: 인물 식별 및 유사도 분석 엔진 고도화
      - 주요 업무
-        - PyTorch 기반 69개 이상 얼굴 특징점 추출
-        - 128/512 차원 벡터 임베딩 변환 및 비교 알고리즘 구현
-        - Kaggle 데이터셋(DFDC, VGGFace2) 활용 모델 학습 및 성능 검증
-        - 유사도 판별을 위한 최적의 임계값 실험 및 설정
+        - insightface (ArcFace buffalo_l) 기반 512차원 얼굴 임베딩 추출
+        - 코사인 유사도 기반 얼굴 비교 알고리즘 구현
+        - 불법 촬영(임계값 0.6) / 딥페이크(임계값 0.5) 이중 임계값 실험 및 설정
+        - ConvNeXt-Tiny 기반 딥페이크 탐지 모델(v12) 학습 및 성능 검증
+        - BiSeNet 기반 얼굴 파싱 모델을 활용한 눈·코·입 가림 여부 검증
 
 - 남지민: Frontend Eng.
      - 핵심 역할: 피해 대응 프로세스 시각화 및 사용자 경험 최적화
      - 주요 업무
-        - React 기반의 인터랙티브 사용자 UI 구현
-        - 피해 현황 및 분석 진행 상태 실시간 모니터링 대시보드 개발
+        - React 19 + Vite 기반의 인터랙티브 사용자 UI 구현
+        - 피해 현황 및 분석 진행 상태 실시간 모니터링 대시보드 개발 (5초 폴링)
         - 증거 보고서 조회 및 삭제 요청 관리 인터페이스 구축
-        - Tailwind CSS를 활용한 직관적이고 깔끔한 디자인 시스템 적용
+        - 얼굴 등록 페이지, 탐지 요청 페이지, 결과 보고서 페이지, 삭제 요청서 페이지 구현
 
 - 박민서: Backend Eng.
      - 핵심 역할: 시스템 통합 및 데이터 흐름 제어
      - 주요 업무
-        - FastApI 기반 비동기 API 서버 설계 및 구축
+        - FastAPI 기반 비동기 RESTful API 서버 설계 및 구축
         - MongoDB Atlas 스키마 설계 및 데이터 무결성 관리
-        - LLM(GPT?) 연동 다국어 삭제 요청 메일 생성 로직 구현
-        - SHA-256 해시 기반 PDF 증거 보고서 생성 엔진 개발
+        - JWT + bcrypt 기반 사용자 인증 및 보안 처리
+        - Pydantic 스키마 기반 입력값 검증 및 파일 위변조 방지
+        - 얼굴 임베딩 평균 벡터 산출 및 face_profiles 컬렉션 관리
 
 - 이서현: System Eng.
      - 핵심 역할: 정밀 채증 및 원천 데이터 수집 파이프라인 구축
      - 주요 업무
-        - Playwright 기반 실시간 웹페이지 접속 및 캡처 자동화
-        - 이미지 외 메타데이터(IP, URL, 타임스탬프) 추출 로직 개발
-        - 봇 탐지 우회 및 다중 플랫폼 대응 전략 수립
-        - 수집된 데이터의 백엔드 전달 및 아카이빙 구조 설계
-       
-- ### 시스템 구조 설계
+        - Playwright 기반 헤드리스 브라우저 실시간 웹페이지 접속 및 스크린샷 자동화
+        - 이미지 외 메타데이터(서버 IP, 국가/도시, 타임스탬프) 추출 로직 개발
+        - 봇 탐지 우회(webdriver 제거, User-Agent 설정, 추적 도메인 차단) 전략 수립
+        - asyncio.Semaphore(5) 기반 병렬 이미지 분석 처리 구현
+        - ReportLab 기반 PDF 증거 보고서 자동 생성
+        - Claude API (Haiku 4.5) 연동 다국어 삭제 요청문 자동 생성
+
+### 시스템 구조 설계
 ```
- leakcare/ (Root)
-├── .gitignore               # GitHub 제외 파일 설정 (Kaggle 데이터, .env 등)
+leakcare/ (Root)
+├── .gitignore               # GitHub 제외 파일 설정 (.env, 모델 가중치 등)
 ├── README.md                # 전체 프로젝트 실행 및 설치 가이드
 ├── requirements.txt         # 전체 라이브러리 목록 (pip install -r)
 │
-├── system/ (이서현) 
-│   ├── main.py              # 최상위 파일
-_│   ├── __init__.py          # 패키지 인식용_
+├── system/ (이서현)
+│   ├── main.py              # 채증 엔진 최상위 진입점 및 CLI 인터페이스
+│   ├── server.py            # FastAPI 기반 SYS 서버 (/analyze 엔드포인트)
 │   ├── browser/             # 브라우저 구동 관련
 │   │   ├── manager.py       # Playwright 브라우저 생성 및 세션 관리
-│   │   └── stealth.py       # SNS 봇 탐지 우회(Stealth) 설정
+│   │   └── stealth.py       # 봇 탐지 우회(Stealth) 설정
 │   ├── core/                # 핵심 수집 기능
-│   │   ├── capture.py       # 실시간 스크린샷 및 PDF 증거 박제 로직 
-│   │   └── extractor.py     # IP, 서버 위치, 타임스탬프 등 메타데이터 추출
+│   │   ├── capture.py       # 실시간 스크린샷 및 Lazy Loading 강제 로드
+│   │   └── extractor.py     # 서버 IP, 국가/도시, 이미지 URL, 게시물 링크 추출
 │   └── utils/               # 공통 도구
-│       └── file_path.py     # 캡처 파일 임시 저장 및 경로 관리
+│       ├── file_path.py     # 증거 파일 경로 생성 및 관리
+│       ├── report.py        # ReportLab 기반 PDF 증거 보고서 생성
+│       └── llm.py           # Claude API 연동 다국어 삭제 요청문 생성
 │
-├── ai_model/ (김수진)      
-│   ├── models/              # 학습된 가중치 파일(.pth) 저장 폴더
-│   │   ├── face_detection.pth    # 얼굴 검출 모델 가중치
-│   │   ├── feature_extract.pth   # 특징점 추출 모델 가중치
-│   │   └── config.json           # 모델 버전 및 임계값(Threshold) 설정
-│   ├── preprocessor.py      # 이미지 리사이징 및 68개 특징점 전처리
-│   ├── analyzer.py          # 특징점 추출 및 유사도 계산
-│   └── loader.py            # PyTorch 모델 로드 및 GPU/CPU 할당 설정 
+├── AI/ (김수진)
+│   ├── analyze.py           # 얼굴 유사도 비교 및 딥페이크 탐지 통합 분석
+│   ├── register.py          # 얼굴 등록 및 임베딩 추출
+│   ├── config.py            # 모델 설정 및 임계값 관리
+│   ├── models/
+│   │   └── face_parsing.pth # BiSeNet 얼굴 파싱 모델 가중치
+│   ├── detection/
+│   │   ├── face_detector.py # 6단계 얼굴 등록 검증 파이프라인
+│   │   └── face_parser.py   # BiSeNet 기반 눈·코·입 가림 여부 검증
+│   └── deepfake/
+│       └── deepfake_detector.py      # ConvNeXt-Tiny 기반 딥페이크 탐지
+│       └── deepfake_detector_v12.pth # 파인튜닝된 딥페이크 탐지 모델 가중치
 │
-├── backend/ (박민서)    
-│   ├── api/                 # API 엔드포인트별 분리
-│   │   ├── analysis.py      # 유출 분석 요청 수신 및 시스템 모듈 호출
-│   │   ├── user.py          # 사용자 사진 등록 및 벡터 저장 관리
-│   │   └── report.py        # PDF 보고서 생성 및 LLM 삭제 요청 메일 생성
-│   ├── db/                  # MongoDB 연동 로직
-│   │   ├── mongodb.py       # MongoDB Atlas 연결 및 세션 관리
-│   │   └── schemas.py       # Pydantic을 이용한 데이터 규격 정의
-│   ├── core/                # 공통 핵심 로직
-│   │   ├── security.py      # SHA-256 해시 생성 및 무결성 검증
-│   │   └── config.py        # .env 환경 변수 로드
-│   └── main.py              # FastAPI 서버 진입점 및 라우터 통합
+├── backend/ (박민서)
+│   ├── app/
+│   │   ├── main.py          # FastAPI 서버 진입점 및 미들웨어 설정
+│   │   ├── api/v1/
+│   │   │   ├── endpoints/
+│   │   │   │   ├── detection.py  # 탐지 요청 수신 및 SYS 엔진 호출
+│   │   │   │   ├── faces.py      # 얼굴 사진 등록 및 임베딩 관리
+│   │   │   │   ├── reports.py    # 보고서 조회 및 삭제 요청문 반환
+│   │   │   │   └── users.py      # 회원가입, 로그인, 비밀번호 변경
+│   │   │   └── dependencies.py   # JWT 토큰 기반 인증 의존성
+│   │   ├── core/
+│   │   │   ├── config.py    # 환경변수 로드 (pydantic-settings)
+│   │   │   ├── database.py  # MongoDB Atlas 연결 및 세션 관리
+│   │   │   └── security.py  # bcrypt 해시, JWT 토큰 생성/검증
+│   │   ├── schemas/         # Pydantic 기반 요청/응답 데이터 스키마
+│   │   │   ├── detection.py
+│   │   │   ├── face.py
+│   │   │   ├── report.py
+│   │   │   └── user.py
+│   │   ├── services/
+│   │   │   └── selector.py  # URL 패턴 분석 기반 분석 모드 결정
+│   │   └── utils/
+│   │       └── file_validator.py  # 파일 MIME 타입 검증 (위변조 방지)
+│   └── ai/                  # BE 내 얼굴 등록용 AI 모듈
+│       ├── register.py
+│       └── detection/
+│           ├── face_detector.py
+│           └── face_parser.py
 │
-└── frontend/ (남지민)  
-    ├── public/                  # 정적 파일 (로고, 파비콘 등)
+└── frontend/ (남지민)
+    ├── public/              # 정적 파일 (로고, 파비콘 등)
     ├── src/
     │   ├── api/             # 백엔드 통신 관련
-    │   │   ├── axios.js         # Axios 기본 설정 (Base URL, Timeout 등)
-    │   │   └── analysis.js      # 분석 요청 및 결과 조회 API 함수들
-    │   ├── components/      # UI 조각 (입력창, 결과 카드)
-    │   │   ├── common/          # 공통 UI 
-    │   │   │   ├── Header.jsx          # 로고와 메뉴가 있는 상단 바
-    │   │   │   ├── Footer.jsx          # 하단 정보 바
-    │   │   │   ├── Button.jsx          # 스타일 입혀진 공통 버튼
-    │   │   │   ├── LoadingSpinner.jsx  # 분석 중일 때 보여줄 로딩 애니메이션
-    │   │   ├── dashboard/       # 대시보드 전용
-    │   │   │   ├── DetectionStatus.jsx # 분석 진행 현황 보여주는 요약 카드
-    │   │   │   ├── ResultTable.jsx     # 탐지된 유출물 리스트 보여주는 표
-    │   │   │   ├── EvidencePreview.jsx # 캡처된 이미지 미리 보여주는 창
-    │   │   └── forms/          # 입력 양식
-    │   │   │   ├── PhotoUpload.jsx     # 사진 등록하는 업로드 칸
-    │   │   │   ├── UrlSubmit.jsx       # 의심 URL 입력하고 분석 버튼 누르는 칸
-    │   ├── hooks/               # 커스텀 훅 (선택 사항 - 데이터 로딩 등)
-    │   ├── pages/           # 전체 화면 (대시보드, 등록 페이지)
-    │   │   ├── HomePage.jsx     # 서비스 소개 및 메인
-    │   │   ├── RegisterPage.jsx # 내 사진(벡터) 등록 페이지
-    │   │   ├── DashBoard.jsx    # 유출 분석 현황 대시보드
-    │   │   └── ResultPage.jsx   # 상세 증거 보고서 확인 페이지
-    │   └── styles/          # Tailwind CSS 디자인 설정
-    │   │   └── index.css        # Tailwind CSS 설정 및 글로벌 스타일
-    │   ├── utils/           # 공통 함수 (날짜 포맷 변경 등
-    │   │   ├── Formatter.js     #서버에서 받은 날짜나 숫자를 읽기 변환하는 함수
-    │   │   └── Validators.js    # 입력된 URL 형식이 맞는지, 이미지 용량이 너무 크지 않은지 체크하는 함수
-    │   ├── App.jsx              # 전체 라우팅 설정 (React Router)
-    │   └── main.jsx             # 리액트 시작점
-    ├── .env                     # 백엔드 주소 등 환경 변수
-    ├── index.html               # 메인 HTML 템플릿
-    └── tailwind.config.js       # Tailwind CSS 상세 설정
-    └── package.json         # 패키지 관리
+    │   │   ├── client.js    # Base URL 및 공통 헤더 설정
+    │   │   ├── detectApi.js # 탐지 요청 API
+    │   │   ├── jobApi.js    # 작업 목록 조회 API
+    │   │   ├── photoApi.js  # 얼굴 사진 등록/조회/삭제 API
+    │   │   ├── reportApi.js # 보고서 조회 및 삭제 요청문 API
+    │   │   └── userApi.js   # 회원가입, 로그인, 비밀번호 변경 API
+    │   ├── components/
+    │   │   └── layout/
+    │   │       └── MainLayout.jsx  # 상단 네비게이션 및 공통 레이아웃
+    │   ├── pages/
+    │   │   ├── Login.jsx           # 로그인 페이지
+    │   │   ├── Register.jsx        # 회원가입 페이지
+    │   │   ├── Dashboard.jsx       # 메인 현황 대시보드
+    │   │   ├── PhotoManagement.jsx # 얼굴 사진 등록 및 관리
+    │   │   ├── DetectRequest.jsx   # 탐지 요청 페이지
+    │   │   ├── JobList.jsx         # 작업 목록 및 실시간 폴링
+    │   │   ├── ReportList.jsx      # 결과 보고서 목록
+    │   │   ├── Result.jsx          # 보고서 상세 페이지
+    │   │   └── DeleteRequest.jsx   # 삭제 요청서 확인 페이지
+    │   ├── routes/
+    │   │   └── AppRouter.jsx       # React Router 라우팅 설정
+    │   ├── styles/                 # 페이지별 CSS 파일
+    │   ├── App.jsx                 # 앱 루트 컴포넌트
+    │   └── main.jsx                # 리액트 시작점
+    ├── index.html
+    ├── vite.config.js
+    └── package.json
 ```
