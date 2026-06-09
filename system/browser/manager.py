@@ -56,7 +56,6 @@ class BrowserManager:
                 
             await route.continue_()
             
-        # 모든 요청에 대해 필터링 규칙 적용
         await context.route("**/*", intercept_route)
         
         await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
